@@ -4,7 +4,9 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from database import db
 import os
-
+from routes.trades import trades_bp
+from routes.journal import journal_bp
+from routes.dashboard import dashboard_bp
 # Load environment variables
 load_dotenv()
 
@@ -30,16 +32,13 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True, al
 def health_check():
     return {'status': 'healthy', 'message': 'Trading Dashboard API is running'}
 
+    # Register blueprints
+app.register_blueprint(trades_bp, url_prefix='/api/trades')
+app.register_blueprint(journal_bp, url_prefix='/api/journal')
+app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+
 if __name__ == '__main__':
     # Import routes after db initialization to avoid circular imports
-    from routes.trades import trades_bp
-    from routes.journal import journal_bp
-    from routes.dashboard import dashboard_bp
-
-    # Register blueprints
-    app.register_blueprint(trades_bp, url_prefix='/api/trades')
-    app.register_blueprint(journal_bp, url_prefix='/api/journal')
-    app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
     with app.app_context():
         db.create_all()
