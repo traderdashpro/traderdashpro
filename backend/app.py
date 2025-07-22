@@ -16,6 +16,9 @@ app = Flask(__name__)
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key')
 
+
+
+
 # PostgreSQL configuration
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/trading_insights')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -26,6 +29,8 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 # Enable CORS
+
+CORS(app, resources={r"/api/*": {"origins": "https://traderdashpro.vercel.app/"}})
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Content-Type", "Authorization"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 @app.route('/api/health')
