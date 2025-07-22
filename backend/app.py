@@ -37,9 +37,10 @@ app.register_blueprint(trades_bp, url_prefix='/api/trades')
 app.register_blueprint(journal_bp, url_prefix='/api/journal')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
+with app.app_context():
+    db.create_all()
+
+
 if __name__ == '__main__':
     # Import routes after db initialization to avoid circular imports
-
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5001)))
