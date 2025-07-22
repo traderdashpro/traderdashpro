@@ -30,8 +30,9 @@ migrate = Migrate(app, db)
 
 # Enable CORS
 
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-# CORS(app, resources={r"/api/*": {"origins": "https://traderdashpro.vercel.app/"}}, supports_credentials=True, allow_headers=["Content-Type", "Authorization"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+#CORS(app, resources={r"/api/*": {"origins": "*"}})
+# CORS(app, resources={r"/api/*": {"origins": "https://traderdashpro.vercel.app"}}, supports_credentials=True, allow_headers=["Content-Type", "Authorization"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+CORS(app, resources={r"/api/*": {"origins": "https://traderdashpro.vercel.app"}})
 
 @app.route('/api/health')
 def health_check():
