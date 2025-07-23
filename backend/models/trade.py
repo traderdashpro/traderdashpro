@@ -1,6 +1,8 @@
 from database import db
 from datetime import datetime
 import uuid
+#import user model
+from models.user import User
 
 class Trade(db.Model):
     __tablename__ = 'trades'
@@ -17,6 +19,8 @@ class Trade(db.Model):
     sell_price = db.Column(db.Numeric(10, 2), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', backref='trades')
     
     # Relationship with journal entries
     journal_entries = db.relationship('JournalEntry', backref='trade', lazy=True)

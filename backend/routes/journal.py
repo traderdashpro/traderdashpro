@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from database import db
 from models.journal import JournalEntry
 from models.trade import Trade
+from utils.decorators import require_auth
 from datetime import datetime
 import os
 import openai
@@ -12,19 +13,29 @@ journal_bp = Blueprint('journal', __name__)
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @journal_bp.route('/', methods=['GET'])
+@require_auth
 def get_journal_entries():
-    """Get all journal entries with optional filtering"""
+    """Get all journal entries for the authenticated user with optional filtering"""
     try:
+        user = request.current_user
+        
         # Get query parameters for filtering
         trade_id = request.args.get('trade_id')
         entry_type = request.args.get('entry_type')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
-        # Build query
-        query = JournalEntry.query
+        # Build query - only get entries for trades belonging to the current user
+        query = JournalEntry.query.join(Trade).filter(Trade.user_id == user.id)
         
         if trade_id:
+            # Ensure the trade belongs to the current user
+            trade = Trade.query.filter_by(id=trade_id, user_id=user.id).first()
+            if not trade:
+                return jsonify({
+                    'success': False,
+                    'error': 'Trade not found'
+                }), 404
             query = query.filter(JournalEntry.trade_id == trade_id)
         if entry_type:
             query = query.filter(JournalEntry.entry_type == entry_type)
@@ -48,9 +59,11 @@ def get_journal_entries():
         }), 500
 
 @journal_bp.route('/', methods=['POST'])
+@require_auth
 def create_journal_entry():
-    """Create a new journal entry"""
+    """Create a new journal entry for the authenticated user"""
     try:
+        user = request.current_user
         data = request.get_json()
         
         # Validate required fields
@@ -68,7 +81,8 @@ def create_journal_entry():
         # Validate trade_id if provided
         trade_id = data.get('trade_id')
         if trade_id:
-            trade = Trade.query.get(trade_id)
+            # Ensure the trade belongs to the current user
+            trade = Trade.query.filter_by(id=trade_id, user_id=user.id).first()
             if not trade:
                 return jsonify({
                     'success': False,

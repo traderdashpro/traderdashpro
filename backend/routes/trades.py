@@ -1,23 +1,27 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models.trade import Trade
+from utils.decorators import require_auth
 from datetime import datetime
 import uuid
 
 trades_bp = Blueprint('trades', __name__)
 
 @trades_bp.route('/', methods=['GET'])
+@require_auth
 def get_trades():
-    """Get all trades with optional filtering"""
+    """Get all trades for the authenticated user with optional filtering"""
     try:
+        user = request.current_user
+        
         # Get query parameters for filtering
         trading_type = request.args.get('trading_type')
         win_loss = request.args.get('win_loss')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
-        # Build query
-        query = Trade.query
+        # Build query - only get trades for the current user
+        query = Trade.query.filter(Trade.user_id == user.id)
         
         if trading_type:
             query = query.filter(Trade.trading_type == trading_type)
@@ -43,9 +47,11 @@ def get_trades():
         }), 500
 
 @trades_bp.route('/', methods=['POST'])
+@require_auth
 def create_trade():
-    """Create a new trade"""
+    """Create a new trade for the authenticated user"""
     try:
+        user = request.current_user
         data = request.get_json()
 
         # Validate required fields
@@ -67,7 +73,7 @@ def create_trade():
         # Parse date
         trade_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
 
-        # Create trade
+        # Create trade with user association
         trade = Trade(
             date=trade_date,
             ticker_symbol=data['ticker_symbol'],
@@ -76,6 +82,9 @@ def create_trade():
             sell_price=data['sell_price'],
             trading_type=data['trading_type']
         )
+        
+        # Associate trade with user
+        trade.user_id = user.id
 
         db.session.add(trade)
         db.session.commit()
@@ -94,21 +103,24 @@ def create_trade():
         }), 500
 
 @trades_bp.route('/<trade_id>', methods=['GET'])
+@require_auth
 def get_trade(trade_id):
-    """Get a specific trade by ID"""
+    """Get a specific trade by ID for the authenticated user"""
     try:
-        trade = Trade.query.get(trade_id)
+        user = request.current_user
+        trade = Trade.query.filter_by(id=trade_id, user_id=user.id).first()
+        
         if not trade:
             return jsonify({
                 'success': False,
                 'error': 'Trade not found'
             }), 404
-        
+
         return jsonify({
             'success': True,
             'trade': trade.to_dict()
         }), 200
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -116,10 +128,12 @@ def get_trade(trade_id):
         }), 500
 
 @trades_bp.route('/<trade_id>', methods=['PUT'])
+@require_auth
 def update_trade(trade_id):
     """Update a trade"""
     try:
-        trade = Trade.query.get(trade_id)
+        user = request.current_user
+        trade = Trade.query.filter_by(id=trade_id, user_id=user.id).first()
         if not trade:
             return jsonify({
                 'success': False,
@@ -173,11 +187,13 @@ def update_trade(trade_id):
         }), 500
 
 @trades_bp.route('/<trade_id>', methods=['DELETE'])
+@require_auth
 def delete_trade(trade_id):
     print("deteing trade")
     """Delete a trade"""
     try:
-        trade = Trade.query.get(trade_id)
+        user = request.current_user
+        trade = Trade.query.filter_by(id=trade_id, user_id=user.id).first()
         print(trade)
         if not trade:
             return jsonify({

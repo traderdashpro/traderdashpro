@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models.trade import Trade
+from utils.decorators import require_auth
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import csv
@@ -10,14 +11,17 @@ from collections import defaultdict
 dashboard_bp = Blueprint('dashboard', __name__)
 
 @dashboard_bp.route('/stats', methods=['GET'])
+@require_auth
 def get_dashboard_stats():
-    """Get dashboard statistics"""
+    """Get dashboard statistics for the authenticated user"""
     try:
+        user = request.current_user
+        
         # Get query parameters
         trading_type = request.args.get('trading_type')  # 'Swing', 'Day', or None for all
         
-        # Build base query
-        query = Trade.query
+        # Build base query - only get trades for the current user
+        query = Trade.query.filter(Trade.user_id == user.id)
         
         if trading_type:
             query = query.filter(Trade.trading_type == trading_type)
@@ -74,14 +78,17 @@ def get_dashboard_stats():
         }), 500
 
 @dashboard_bp.route('/chart', methods=['GET'])
+@require_auth
 def get_chart_data():
-    """Get chart data for dashboard"""
+    """Get chart data for dashboard for the authenticated user"""
     try:
+        user = request.current_user
+        
         # Get query parameters
         trading_type = request.args.get('trading_type')  # 'Swing', 'Day', or None for all
         
-        # Build base query
-        query = Trade.query
+        # Build base query - only get trades for the current user
+        query = Trade.query.filter(Trade.user_id == user.id)
         
         if trading_type:
             query = query.filter(Trade.trading_type == trading_type)
@@ -161,11 +168,14 @@ def get_chart_data():
         }), 500
 
 @dashboard_bp.route('/trading-type-stats', methods=['GET'])
+@require_auth
 def get_trading_type_stats():
-    """Get statistics by trading type"""
+    """Get statistics by trading type for the authenticated user"""
     try:
+        user = request.current_user
+        
         # Get stats for Swing trades
-        swing_trades = Trade.query.filter(Trade.trading_type == 'Swing').all()
+        swing_trades = Trade.query.filter(Trade.user_id == user.id, Trade.trading_type == 'Swing').all()
         swing_stats = {
             'total_trades': len(swing_trades),
             'win_count': len([t for t in swing_trades if t.win_loss == 'Win']),
@@ -177,7 +187,7 @@ def get_trading_type_stats():
             swing_stats['win_rate'] = round((swing_stats['win_count'] / swing_stats['total_trades']) * 100, 2)
         
         # Get stats for Day trades
-        day_trades = Trade.query.filter(Trade.trading_type == 'Day').all()
+        day_trades = Trade.query.filter(Trade.user_id == user.id, Trade.trading_type == 'Day').all()
         day_stats = {
             'total_trades': len(day_trades),
             'win_count': len([t for t in day_trades if t.win_loss == 'Win']),
@@ -201,7 +211,9 @@ def get_trading_type_stats():
         }), 500 
 
 @dashboard_bp.route('/upload-statement', methods=['POST'])
+@require_auth
 def upload_statement():
+    user = request.current_user
     platform = request.form.get('platform')
     file = request.files.get('file')
     if not platform or not file:
@@ -323,7 +335,8 @@ def upload_statement():
                     number_of_shares=num_shares,
                     buy_price=buy_price,
                     sell_price=sell_price,
-                    trading_type=trading_type
+                    trading_type=trading_type,
+                    user_id=user.id
                 )
                 db.session.add(trade_obj)
                 new_trades.append(trade_obj)
