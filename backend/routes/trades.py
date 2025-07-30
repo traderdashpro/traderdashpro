@@ -80,11 +80,9 @@ def create_trade():
             number_of_shares=data['number_of_shares'],
             buy_price=data['buy_price'],
             sell_price=data['sell_price'],
-            trading_type=data['trading_type']
+            trading_type=data['trading_type'],
+            user_id=user.id
         )
-        
-        # Associate trade with user
-        trade.user_id = user.id
 
         db.session.add(trade)
         db.session.commit()

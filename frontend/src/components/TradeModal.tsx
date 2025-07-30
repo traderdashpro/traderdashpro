@@ -49,19 +49,21 @@ export default function TradeModal({
       const formData = new FormData();
       formData.append("platform", platform);
       if (file) formData.append("file", file);
-      const res = await fetch("/api/dashboard/upload-statement", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setUploadError(data.error || "Upload failed");
-      } else {
-        setUploadResult("Trades imported successfully!");
+
+      // Use the authenticated API client for the upload
+      const response = await apiClient.uploadStatement(formData);
+
+      // The backend returns data directly on success, no 'success' field
+      if (response && response.closed_trades_count !== undefined) {
+        setUploadResult(
+          `Successfully imported ${response.closed_trades_count} trades!`
+        );
         setTimeout(() => {
           if (onTradeCreated) onTradeCreated();
           onClose();
         }, 500);
+      } else {
+        setUploadError(response.error || "Upload failed");
       }
     } catch (err: any) {
       setUploadError(err.message || "Upload failed");

@@ -7,6 +7,8 @@ import TradeTable from "@/components/TradeTable";
 import TradeModal from "@/components/TradeModal";
 import JournalModal from "@/components/JournalModal";
 import InsightsPanel from "@/components/InsightsPanel";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { UserMenu } from "@/components/auth/UserMenu";
 import { Trade } from "@/types";
 
 export default function HomePage() {
@@ -43,138 +45,141 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Trading Dashboard
-            </h1>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setTradeModalOpen(true)}
-                className="btn-primary flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Trade
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedTrade(null);
-                  setJournalModalOpen(true);
-                }}
-                className="btn-secondary flex items-center"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Add Journal
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <h1 className="text-2xl font-bold text-gray-900">
+                Trading Insights
+              </h1>
+              <div className="flex items-center space-x-4">
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? "border-primary-500 text-primary-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
+                  onClick={() => setTradeModalOpen(true)}
+                  className="btn-primary flex items-center"
                 >
-                  {Icon && <Icon className="h-4 w-4 mr-2" />}
-                  {tab.label}
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Trade
                 </button>
-              );
-            })}
+                <button
+                  onClick={() => {
+                    setSelectedTrade(null);
+                    setJournalModalOpen(true);
+                  }}
+                  className="btn-secondary flex items-center"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Add Journal
+                </button>
+                <UserMenu />
+              </div>
+            </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "dashboard" && <Dashboard />}
+        {/* Navigation Tabs */}
+        <nav className="bg-white border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex space-x-8">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === tab.id
+                        ? "border-primary-500 text-primary-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {Icon && <Icon className="h-4 w-4 mr-2" />}
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
 
-        {activeTab === "trades" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {activeTab === "dashboard" && <Dashboard />}
+
+          {activeTab === "trades" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Trade History
+                </h2>
+                <button
+                  onClick={() => setTradeModalOpen(true)}
+                  className="btn-primary flex items-center"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Trade
+                </button>
+              </div>
+              <TradeTable
+                key={tradesTableKey}
+                onTradeSelected={handleTradeSelected}
+                onTradeDeleted={handleTradeCreated}
+              />
+            </div>
+          )}
+
+          {activeTab === "journal" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Trading Journal
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedTrade(null);
+                    setJournalModalOpen(true);
+                  }}
+                  className="btn-primary flex items-center"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Add Journal Entry
+                </button>
+              </div>
+              <div className="card">
+                <p className="text-gray-600">
+                  Select a trade from the Trades tab to add a trade-specific
+                  journal entry, or use the "Add Journal Entry" button to create
+                  a general journal entry.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "insights" && (
+            <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900">
-                Trade History
+                AI Trading Insights
               </h2>
-              <button
-                onClick={() => setTradeModalOpen(true)}
-                className="btn-primary flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Trade
-              </button>
+              <InsightsPanel />
             </div>
-            <TradeTable
-              key={tradesTableKey}
-              onTradeSelected={handleTradeSelected}
-              onTradeDeleted={handleTradeCreated}
-            />
-          </div>
-        )}
+          )}
+        </main>
 
-        {activeTab === "journal" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Trading Journal
-              </h2>
-              <button
-                onClick={() => {
-                  setSelectedTrade(null);
-                  setJournalModalOpen(true);
-                }}
-                className="btn-primary flex items-center"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Add Journal Entry
-              </button>
-            </div>
-            <div className="card">
-              <p className="text-gray-600">
-                Select a trade from the Trades tab to add a trade-specific
-                journal entry, or use the "Add Journal Entry" button to create a
-                general journal entry.
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Modals */}
+        <TradeModal
+          isOpen={tradeModalOpen}
+          onClose={() => setTradeModalOpen(false)}
+          onTradeCreated={handleTradeCreated}
+        />
 
-        {activeTab === "insights" && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              AI Trading Insights
-            </h2>
-            <InsightsPanel />
-          </div>
-        )}
-      </main>
-
-      {/* Modals */}
-      <TradeModal
-        isOpen={tradeModalOpen}
-        onClose={() => setTradeModalOpen(false)}
-        onTradeCreated={handleTradeCreated}
-      />
-
-      <JournalModal
-        isOpen={journalModalOpen}
-        onClose={() => setJournalModalOpen(false)}
-        onJournalCreated={handleJournalCreated}
-        selectedTrade={selectedTrade}
-      />
-    </div>
+        <JournalModal
+          isOpen={journalModalOpen}
+          onClose={() => setJournalModalOpen(false)}
+          onJournalCreated={handleJournalCreated}
+          selectedTrade={selectedTrade}
+        />
+      </div>
+    </ProtectedRoute>
   );
 }

@@ -25,7 +25,7 @@ class Trade(db.Model):
     # Relationship with journal entries
     journal_entries = db.relationship('JournalEntry', backref='trade', lazy=True)
     
-    def __init__(self, date, ticker_symbol, number_of_shares, buy_price, sell_price, trading_type):
+    def __init__(self, date, ticker_symbol, number_of_shares, buy_price, sell_price, trading_type, user_id=None):
         self.date = date
         self.ticker_symbol = ticker_symbol.upper()
         self.number_of_shares = int(number_of_shares)
@@ -34,6 +34,7 @@ class Trade(db.Model):
         self.price_cost_basis = self.number_of_shares * self.buy_price
         self.proceeds = self.number_of_shares * self.sell_price
         self.trading_type = trading_type
+        self.user_id = user_id
         # Auto-detect win/loss based on proceeds vs cost basis
         total_cost = self.price_cost_basis
         self.win_loss = 'Win' if self.proceeds > total_cost else 'Loss'

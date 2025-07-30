@@ -1,10 +1,37 @@
+import {
+  LoginCredentials,
+  SignupCredentials,
+  AuthResponse,
+  User,
+} from "../types";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export class ApiClient {
   private baseUrl: string;
+  private token: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
+    // Load token from localStorage on initialization
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
+    }
+  }
+
+  setToken(token: string | null) {
+    this.token = token;
+    if (typeof window !== "undefined") {
+      if (token) {
+        localStorage.setItem("auth_token", token);
+      } else {
+        localStorage.removeItem("auth_token");
+      }
+    }
+  }
+
+  getToken(): string | null {
+    return this.token;
   }
 
   private async request<T>(
@@ -12,19 +39,81 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+
+    // Add authorization header if token exists
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
     const response = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
       ...options,
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
     }
 
     return response.json();
+  }
+
+  // Authentication API
+  async signup(credentials: SignupCredentials): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+
+    // Store token if login is successful
+    if (response.token) {
+      this.setToken(response.token);
+    }
+
+    return response;
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.request("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      // Ignore logout errors
+    } finally {
+      this.setToken(null);
+    }
+  }
+
+  async getCurrentUser(): Promise<{ user: User }> {
+    return this.request<{ user: User }>("/api/auth/me");
+  }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
   }
 
   // Trades API
@@ -158,6 +247,32 @@ export class ApiClient {
 
   async getTradingTypeStats(): Promise<any> {
     return this.request("/api/dashboard/trading-type-stats");
+  }
+
+  async uploadStatement(formData: FormData): Promise<any> {
+    const url = `${this.baseUrl}/api/dashboard/upload-statement`;
+
+    const headers: Record<string, string> = {};
+
+    // Add authorization header if token exists
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    return response.json();
   }
 }
 

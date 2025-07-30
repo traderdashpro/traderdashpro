@@ -53,6 +53,44 @@ export interface TradingTypeStats {
   win_rate: number;
 }
 
+// Authentication Types
+export interface User {
+  id: string;
+  email: string;
+  is_confirmed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  token?: string;
+  user?: User;
+  user_id?: string;
+  email?: string;
+  is_confirmed?: boolean;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignupCredentials {
+  email: string;
+  password: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  signup: (credentials: SignupCredentials) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
