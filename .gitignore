@@ -1,3 +1,5 @@
+__pycache__/
+*.py[cod]
 # Python/Flask (backend)
 backend/venv/
 backend/__pycache__/

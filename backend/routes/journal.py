@@ -25,8 +25,8 @@ def get_journal_entries():
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
-        # Build query - only get entries for trades belonging to the current user
-        query = JournalEntry.query.join(Trade).filter(Trade.user_id == user.id)
+        # Build query - only get entries belonging to the current user
+        query = JournalEntry.query.filter(JournalEntry.user_id == user.id)
         
         if trade_id:
             # Ensure the trade belongs to the current user
@@ -96,6 +96,7 @@ def create_journal_entry():
         entry = JournalEntry(
             date=entry_date,
             notes=data['notes'],
+            user_id=str(user.id),
             trade_id=trade_id,
             entry_type=entry_type
         )
@@ -117,10 +118,12 @@ def create_journal_entry():
         }), 500
 
 @journal_bp.route('/<entry_id>', methods=['GET'])
+@require_auth
 def get_journal_entry(entry_id):
     """Get a specific journal entry by ID"""
     try:
-        entry = JournalEntry.query.get(entry_id)
+        user = request.current_user
+        entry = JournalEntry.query.filter_by(id=entry_id, user_id=user.id).first()
         if not entry:
             return jsonify({
                 'success': False,
@@ -139,10 +142,12 @@ def get_journal_entry(entry_id):
         }), 500
 
 @journal_bp.route('/<entry_id>', methods=['PUT'])
+@require_auth
 def update_journal_entry(entry_id):
     """Update a journal entry"""
     try:
-        entry = JournalEntry.query.get(entry_id)
+        user = request.current_user
+        entry = JournalEntry.query.filter_by(id=entry_id, user_id=user.id).first()
         if not entry:
             return jsonify({
                 'success': False,
@@ -183,10 +188,12 @@ def update_journal_entry(entry_id):
         }), 500
 
 @journal_bp.route('/<entry_id>', methods=['DELETE'])
+@require_auth
 def delete_journal_entry(entry_id):
     """Delete a journal entry"""
     try:
-        entry = JournalEntry.query.get(entry_id)
+        user = request.current_user
+        entry = JournalEntry.query.filter_by(id=entry_id, user_id=user.id).first()
         if not entry:
             return jsonify({
                 'success': False,
@@ -209,11 +216,13 @@ def delete_journal_entry(entry_id):
         }), 500
 
 @journal_bp.route('/insights', methods=['GET'])
+@require_auth
 def get_ai_insights():
     """Get AI insights from journal entries"""
     try:
-        # Get all journal entries
-        entries = JournalEntry.query.order_by(JournalEntry.date.desc()).all()
+        user = request.current_user
+        # Get all journal entries for the current user
+        entries = JournalEntry.query.filter_by(user_id=user.id).order_by(JournalEntry.date.desc()).all()
         
         if not entries:
             return jsonify({

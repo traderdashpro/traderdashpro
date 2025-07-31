@@ -47,7 +47,7 @@ migrate = Migrate(app, db)
 mail = Mail(app)
 
 # Enable CORS
-CORS(app, resources={r"/api/*": {"origins": "https://traderdashpro.vercel.app"}})
+CORS(app, resources={r"/api/*": {"origins": ["https://traderdashpro.vercel.app","https://wwww.traderdashpro.com", "http://localhost:3000"]}})
 
 @app.route('/api/health')
 def health_check():
@@ -58,6 +58,21 @@ app.register_blueprint(trades_bp, url_prefix='/api/trades')
 app.register_blueprint(journal_bp, url_prefix='/api/journal')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
+# Run migrations on startup
+with app.app_context():
+    try:
+        from flask_migrate import upgrade
+        upgrade()
+        print("Database migrations completed successfully!")
+    except Exception as e:
+        print(f"Migration error (this is normal on first run): {e}")
+        # Create tables if migrations don't exist yet
+        try:
+            db.create_all()
+            print("Database tables created successfully!")
+        except Exception as create_error:
+            print(f"Error creating tables: {create_error}")
 
 if __name__ == '__main__':
     # Import routes after db initialization to avoid circular imports

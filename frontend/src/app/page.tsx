@@ -6,6 +6,7 @@ import Dashboard from "@/components/Dashboard";
 import TradeTable from "@/components/TradeTable";
 import TradeModal from "@/components/TradeModal";
 import JournalModal from "@/components/JournalModal";
+import JournalTable from "@/components/JournalTable";
 import InsightsPanel from "@/components/InsightsPanel";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { UserMenu } from "@/components/auth/UserMenu";
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [journalModalOpen, setJournalModalOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [tradesTableKey, setTradesTableKey] = useState(0);
+  const [journalTableKey, setJournalTableKey] = useState(0);
 
   const handleTradeCreated = () => {
     // Only refresh trades table, stay on current tab
@@ -28,8 +30,8 @@ export default function HomePage() {
   };
 
   const handleJournalCreated = () => {
-    // Refresh insights panel
-    window.location.reload();
+    // Refresh journal table
+    setJournalTableKey((k) => k + 1);
   };
 
   const handleTradeSelected = (trade: Trade) => {
@@ -146,13 +148,10 @@ export default function HomePage() {
                   Add Journal Entry
                 </button>
               </div>
-              <div className="card">
-                <p className="text-gray-600">
-                  Select a trade from the Trades tab to add a trade-specific
-                  journal entry, or use the "Add Journal Entry" button to create
-                  a general journal entry.
-                </p>
-              </div>
+              <JournalTable
+                key={journalTableKey}
+                onJournalDeleted={handleJournalCreated}
+              />
             </div>
           )}
 
