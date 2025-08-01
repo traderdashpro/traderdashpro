@@ -47,7 +47,7 @@ migrate = Migrate(app, db)
 mail = Mail(app)
 
 # Enable CORS
-CORS(app, resources={r"/api/*": {"origins": ["https://traderdashpro.vercel.app","https://wwww.traderdashpro.com", "http://localhost:3000"]}})
+CORS(app, resources={r"/api/*": {"origins": ["https://traderdashpro.vercel.app","https://wwww.traderdashpro.com/", "http://localhost:3000"]}})
 
 @app.route('/api/health')
 def health_check():
