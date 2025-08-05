@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { AuthProvider } from "../contexts/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Trading Insights",
+  title: "TradeDashPro - Master Your Trading Performance",
   description:
-    "A comprehensive trading dashboard for tracking trades and getting AI insights",
+    "Import your trading data, visualize your performance, and get AI-powered insights to improve your trading strategy. Take your trading to the next level with TradeDashPro.",
 };
 
 export default function RootLayout({

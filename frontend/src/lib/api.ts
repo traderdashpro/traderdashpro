@@ -219,13 +219,13 @@ export class ApiClient {
   }
 
   async deleteJournalEntry(id: string): Promise<any> {
-    return this.request(`/api/journal/${id}/`, {
+    return this.request(`/api/journal/${id}`, {
       method: "DELETE",
     });
   }
 
   async getInsights(): Promise<any> {
-    return this.request("/api/journal/insights/");
+    return this.request("/api/journal/insights");
   }
 
   // Dashboard API - No trailing slashes for these endpoints

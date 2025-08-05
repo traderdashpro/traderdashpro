@@ -10,9 +10,12 @@ import JournalTable from "@/components/JournalTable";
 import InsightsPanel from "@/components/InsightsPanel";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { LandingPage } from "@/components/LandingPage";
+import { useAuth } from "@/contexts/AuthContext";
 import { Trade } from "@/types";
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "trades" | "journal" | "insights"
   >("dashboard");
@@ -21,6 +24,11 @@ export default function HomePage() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [tradesTableKey, setTradesTableKey] = useState(0);
   const [journalTableKey, setJournalTableKey] = useState(0);
+
+  // Show landing page if user is not authenticated
+  if (!user) {
+    return <LandingPage />;
+  }
 
   const handleTradeCreated = () => {
     // Only refresh trades table, stay on current tab
@@ -53,9 +61,7 @@ export default function HomePage() {
         <header className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold text-gray-900">
-                Trading Insights
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">TradeDashPro</h1>
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => setTradeModalOpen(true)}

@@ -5,12 +5,13 @@ from models.trade import Trade
 from utils.decorators import require_auth
 from datetime import datetime
 import os
-import openai
+from openai import OpenAI
+import json
+
+
 
 journal_bp = Blueprint('journal', __name__)
 
-# Initialize OpenAI client
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @journal_bp.route('/', methods=['GET'])
 @require_auth
@@ -241,24 +242,57 @@ def get_ai_insights():
             journal_text += f"Date: {entry.date}, Type: {entry.entry_type}{trade_info}\nNotes: {entry.notes}\n\n"
         
         # Generate AI insights
+        openai = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+            prompt = f"""
+            Analyze the following trading journal entries and provide insights in JSON format.
+            
+            Journal Entries:
+            {journal_text}
+            
+            Please provide analysis in the following JSON structure:
+            {{
+                "key_patterns": ["pattern1", "pattern2", "pattern3"],
+                "strengths": ["strength1", "strength2"],
+                "areas_for_improvement": ["area1", "area2"],
+                "emotional_state_analysis": "brief analysis of emotional patterns",
+                "trading_performance_insights": "insights about trading performance",
+                "recommendations": ["recommendation1", "recommendation2", "recommendation3"]
+            }}
+            
+            Focus on:
+            - Recurring patterns in trading behavior
+            - Emotional states and their impact on trading
+            - Performance trends
+            - Risk management practices
+            - Areas for improvement
+            - Actionable recommendations
+            """
+            
+            response = openai.chat.completions.create(
+                model="gpt-4o",
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a trading analyst. Analyze the provided trading journal entries and provide insights about trading patterns, common mistakes, successful strategies, and recommendations for improvement. Be concise but comprehensive."
+                        "content": "You are an expert trading coach and analyst. Analyze trading journal entries to provide actionable insights and recommendations."
                     },
-                    {
-                        "role": "user",
-                        "content": f"Please analyze these trading journal entries and provide insights:\n\n{journal_text}"
-                    }
+                    {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
-                temperature=0.7
+                response_format={"type": "json_object"}
             )
             
-            insights = response.choices[0].message.content
+            insights = json.loads(response.choices[0].message.content)
+            # client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            # response = client.responses.create(
+            #     model="gpt-4o-mini",
+            #     instructions="You are a trading analyst. Analyze the provided trading journal entries and provide insights about trading patterns, common mistakes, successful strategies, and recommendations for improvement. Be concise but comprehensive.",
+            #     input=f"Please analyze these trading journal entries and provide insights:\n\n{journal_text}",
+            #     temperature=0.7
+            # )
+            
+            # # insights = response.choices[0].message.content
+            # print(response)
+            # insights = response.output_text
             
         except Exception as ai_error:
             insights = f"Unable to generate AI insights at this time. Error: {str(ai_error)}"
