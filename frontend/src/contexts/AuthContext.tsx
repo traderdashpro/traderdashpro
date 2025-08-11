@@ -62,6 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.token && response.user) {
         setToken(response.token);
         setUser(response.user);
+        // Set the token in the API client
+        apiClient.setToken(response.token);
       } else {
         throw new Error("Invalid login response");
       }
@@ -78,9 +80,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await apiClient.signup(credentials);
 
-      // For now, auto-login after signup since email confirmation is disabled
-      if (response.user_id && response.email) {
-        await login(credentials);
+      // Auto-login after signup since email confirmation is disabled
+      if (response.user && response.token) {
+        // Set the user state and token directly from signup response
+        setUser(response.user);
+        setToken(response.token);
+        // Set the token in the API client
+        apiClient.setToken(response.token);
+      } else {
+        throw new Error("Invalid signup response");
       }
     } catch (error) {
       console.error("Signup failed:", error);

@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "../../contexts/AuthContext";
 import { LoginForm } from "./LoginForm";
 import { SignupForm } from "./SignupForm";
 
 export const AuthPage: React.FC = () => {
   const searchParams = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Redirect to dashboard if user is already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/");
+    }
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     const mode = searchParams.get("mode");

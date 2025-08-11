@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface SignupFormProps {
   onSwitchToLogin: () => void;
@@ -14,7 +15,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { signup } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Redirect to dashboard if user is already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/");
+    }
+  }, [isAuthenticated, router]);
 
   const validatePassword = (password: string) => {
     const minLength = password.length >= 8;

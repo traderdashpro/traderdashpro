@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Trade } from "@/types";
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "trades" | "journal" | "insights"
   >("dashboard");
@@ -26,7 +26,7 @@ export default function HomePage() {
   const [journalTableKey, setJournalTableKey] = useState(0);
 
   // Show landing page if user is not authenticated
-  if (!user) {
+  if (!isAuthenticated) {
     return <LandingPage />;
   }
 

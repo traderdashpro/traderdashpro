@@ -58,6 +58,10 @@ export interface User {
   id: string;
   email: string;
   is_confirmed: boolean;
+  plan: "free" | "premium" | "pro";
+  last_ai_insights_date?: string;
+  next_ai_insights_date?: string;
+  can_get_ai_insights: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -117,4 +121,22 @@ export interface ChartResponse extends ApiResponse<DashboardData> {
 
 export interface InsightsResponse extends ApiResponse<string> {
   insights?: string;
+}
+
+export interface AIInsights {
+  key_patterns: string[];
+  strengths: string[];
+  areas_for_improvement: string[];
+  emotional_state_analysis: string;
+  trading_performance_insights: string;
+  recommendations: string[];
+}
+
+export interface AIInsightsResponse extends ApiResponse<AIInsights> {
+  insights?: AIInsights;
+  plan?: string;
+  can_get_insights?: boolean;
+  last_insights_date?: string;
+  next_available_date?: string;
+  insights_created_at?: string;
 }

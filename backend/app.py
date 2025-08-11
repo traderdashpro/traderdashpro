@@ -10,7 +10,7 @@ from routes.journal import journal_bp
 from routes.dashboard import dashboard_bp
 from routes.auth import auth_bp
 # Import models to ensure they are registered with SQLAlchemy
-from models import User, Trade, JournalEntry
+from models import User, Trade, JournalEntry, AIInsights
 
 # Load environment variables
 load_dotenv()

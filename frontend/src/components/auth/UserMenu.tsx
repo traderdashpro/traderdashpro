@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { Crown } from "lucide-react";
 
 export const UserMenu: React.FC = () => {
   const { user, logout } = useAuth();
@@ -63,7 +64,12 @@ export const UserMenu: React.FC = () => {
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
           <div className="px-4 py-2 text-sm text-gray-700 border-b">
             <p className="font-medium">{user.email}</p>
-            <p className="text-gray-500 text-xs">Account</p>
+            <div className="flex items-center mt-1">
+              <Crown className="h-3 w-3 mr-1 text-gray-500" />
+              <p className="text-gray-500 text-xs capitalize">
+                {user.plan} Plan
+              </p>
+            </div>
           </div>
 
           <button

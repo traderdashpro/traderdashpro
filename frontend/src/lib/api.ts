@@ -57,9 +57,11 @@ export class ApiClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
+      const error = new Error(
         errorData.message || `HTTP error! status: ${response.status}`
       );
+      (error as any).response = { data: errorData, status: response.status };
+      throw error;
     }
 
     return response.json();
@@ -228,6 +230,10 @@ export class ApiClient {
     return this.request("/api/journal/insights");
   }
 
+  async getStoredInsights(): Promise<any> {
+    return this.request("/api/journal/stored-insights");
+  }
+
   // Dashboard API - No trailing slashes for these endpoints
   async getDashboardStats(trading_type?: string): Promise<any> {
     const endpoint = trading_type
@@ -267,9 +273,11 @@ export class ApiClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
+      const error = new Error(
         errorData.message || `HTTP error! status: ${response.status}`
       );
+      (error as any).response = { data: errorData, status: response.status };
+      throw error;
     }
 
     return response.json();

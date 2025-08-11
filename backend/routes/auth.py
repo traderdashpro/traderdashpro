@@ -53,7 +53,8 @@ def signup():
             email=email,
             password=password,
             confirmation_token=confirmation_token,
-            is_confirmed=True  # Auto-confirm for development
+            is_confirmed=True,  # Auto-confirm for development
+            plan='free'  # Default to free plan
         )
         
         db.session.add(user)
@@ -62,11 +63,16 @@ def signup():
         # Skip email sending for now
         # email_sent = send_confirmation_email(email, confirmation_token)
         
+        # Generate JWT token for auto-login
+        token = generate_jwt_token(str(user.id), user.email)
+        
         response_data = {
             'message': 'Registration successful! (Email confirmation disabled for development)',
             'user_id': str(user.id),
             'email': user.email,
-            'is_confirmed': True
+            'is_confirmed': True,
+            'user': user.to_dict(),
+            'token': token
         }
         
         return jsonify(response_data), 201
@@ -118,11 +124,7 @@ def login():
         return jsonify({
             'message': 'Login successful',
             'token': token,
-            'user': {
-                'id': str(user.id),
-                'email': user.email,
-                'is_confirmed': user.is_confirmed
-            }
+            'user': user.to_dict()
         }), 200
         
     except Exception as e:

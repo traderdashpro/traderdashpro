@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from database import db
 from models.journal import JournalEntry
 from models.trade import Trade
+from models.ai_insights import AIInsights
 from utils.decorators import require_auth
 from datetime import datetime
 import os
@@ -222,13 +223,28 @@ def get_ai_insights():
     """Get AI insights from journal entries"""
     try:
         user = request.current_user
+        
+        # Check if user can get AI insights based on their plan
+        if not user.can_get_ai_insights():
+            next_available = user.get_next_ai_insights_date()
+            return jsonify({
+                'success': False,
+                'error': 'AI insights limit reached for free plan',
+                'plan': user.plan,
+                'last_insights_date': user.last_ai_insights_date.isoformat() if user.last_ai_insights_date else None,
+                'next_available_date': next_available.isoformat() if next_available else None,
+                'can_get_insights': False
+            }), 429
+        
         # Get all journal entries for the current user
         entries = JournalEntry.query.filter_by(user_id=user.id).order_by(JournalEntry.date.desc()).all()
         
         if not entries:
             return jsonify({
                 'success': True,
-                'insights': 'No journal entries found to analyze.'
+                'insights': 'No journal entries found to analyze.',
+                'plan': user.plan,
+                'can_get_insights': True
             }), 200
         
         # Prepare data for AI analysis
@@ -282,24 +298,68 @@ def get_ai_insights():
             )
             
             insights = json.loads(response.choices[0].message.content)
-            # client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-            # response = client.responses.create(
-            #     model="gpt-4o-mini",
-            #     instructions="You are a trading analyst. Analyze the provided trading journal entries and provide insights about trading patterns, common mistakes, successful strategies, and recommendations for improvement. Be concise but comprehensive.",
-            #     input=f"Please analyze these trading journal entries and provide insights:\n\n{journal_text}",
-            #     temperature=0.7
-            # )
             
-            # # insights = response.choices[0].message.content
-            # print(response)
-            # insights = response.output_text
+            # Store the insights in the database
+            insights_record = AIInsights(
+                user_id=user.id,
+                insights_data=json.dumps(insights)
+            )
+            db.session.add(insights_record)
+            
+            # Update user's last AI insights date
+            user.last_ai_insights_date = datetime.utcnow()
+            db.session.commit()
             
         except Exception as ai_error:
             insights = f"Unable to generate AI insights at this time. Error: {str(ai_error)}"
         
         return jsonify({
             'success': True,
-            'insights': insights
+            'insights': insights,
+            'plan': user.plan,
+            'can_get_insights': user.can_get_ai_insights(),
+            'last_insights_date': user.last_ai_insights_date.isoformat() if user.last_ai_insights_date else None,
+            'next_available_date': user.get_next_ai_insights_date().isoformat() if user.get_next_ai_insights_date() else None
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 
+
+@journal_bp.route('/stored-insights', methods=['GET'])
+@require_auth
+def get_stored_insights():
+    """Get the most recent stored AI insights for the user"""
+    try:
+        user = request.current_user
+        
+        # Get the most recent AI insights for this user
+        latest_insights = AIInsights.query.filter_by(user_id=user.id).order_by(AIInsights.created_at.desc()).first()
+        
+        if not latest_insights:
+            # For first-time users, return plan info without insights
+            return jsonify({
+                'success': False,
+                'error': 'No stored insights found',
+                'plan': user.plan,
+                'can_get_insights': user.can_get_ai_insights(),
+                'last_insights_date': user.last_ai_insights_date.isoformat() if user.last_ai_insights_date else None,
+                'next_available_date': user.get_next_ai_insights_date().isoformat() if user.get_next_ai_insights_date() else None
+            }), 404
+        
+        # Parse the stored insights
+        insights_data = json.loads(latest_insights.insights_data)
+        
+        return jsonify({
+            'success': True,
+            'insights': insights_data,
+            'plan': user.plan,
+            'can_get_insights': user.can_get_ai_insights(),
+            'last_insights_date': user.last_ai_insights_date.isoformat() if user.last_ai_insights_date else None,
+            'next_available_date': user.get_next_ai_insights_date().isoformat() if user.get_next_ai_insights_date() else None,
+            'insights_created_at': latest_insights.created_at.isoformat()
         }), 200
         
     except Exception as e:
