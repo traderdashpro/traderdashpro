@@ -73,6 +73,7 @@ export interface AuthResponse {
   user_id?: string;
   email?: string;
   is_confirmed?: boolean;
+  email_sent?: boolean;
 }
 
 export interface LoginCredentials {
@@ -89,7 +90,7 @@ export interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
-  signup: (credentials: SignupCredentials) => Promise<void>;
+  signup: (credentials: SignupCredentials) => Promise<AuthResponse>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;

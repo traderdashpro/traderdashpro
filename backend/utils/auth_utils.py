@@ -33,8 +33,11 @@ def generate_confirmation_token():
 def send_confirmation_email(user_email, confirmation_token):
     """Send confirmation email to user"""
     from app import mail
+    import os
     
-    confirmation_url = f"https://traderdashpro.vercel.app/confirm-email?token={confirmation_token}"
+    # Get the frontend URL from environment variable, default to localhost for development
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    confirmation_url = f"{frontend_url}/confirm-email?token={confirmation_token}"
     
     msg = Message(
         'Confirm Your Email - Trading Insights',

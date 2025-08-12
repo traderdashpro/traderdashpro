@@ -48,31 +48,33 @@ def signup():
         # Generate confirmation token (but we'll auto-confirm for now)
         confirmation_token = generate_confirmation_token()
         
-        # Create user with auto-confirmation for development
+        # Create user with email verification enabled
         user = User(
             email=email,
             password=password,
             confirmation_token=confirmation_token,
-            is_confirmed=True,  # Auto-confirm for development
+            is_confirmed=False,  # Require email confirmation
             plan='free'  # Default to free plan
         )
         
         db.session.add(user)
         db.session.commit()
         
-        # Skip email sending for now
-        # email_sent = send_confirmation_email(email, confirmation_token)
+        # Send confirmation email
+        email_sent = send_confirmation_email(email, confirmation_token)
         
-        # Generate JWT token for auto-login
-        token = generate_jwt_token(str(user.id), user.email)
+        if not email_sent:
+            # If email fails, delete the user and return error
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({'message': 'Failed to send confirmation email. Please try again.'}), 500
         
         response_data = {
-            'message': 'Registration successful! (Email confirmation disabled for development)',
+            'message': 'Registration successful! Please check your email to confirm your account.',
             'user_id': str(user.id),
             'email': user.email,
-            'is_confirmed': True,
-            'user': user.to_dict(),
-            'token': token
+            'is_confirmed': False,
+            'email_sent': True
         }
         
         return jsonify(response_data), 201
@@ -107,12 +109,12 @@ def login():
         if not verify_password(user.password_hash, password):
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        # Skip email confirmation check for development
-        # if not user.is_confirmed:
-        #     return jsonify({
-        #         'message': 'Email not confirmed. Please check your email and click the confirmation link.',
-        #         'email_not_confirmed': True
-        #     }), 403
+        # Check email confirmation
+        if not user.is_confirmed:
+            return jsonify({
+                'message': 'Email not confirmed. Please check your email and click the confirmation link.',
+                'email_not_confirmed': True
+            }), 403
         
         # Generate JWT token
         token = generate_jwt_token(str(user.id), user.email)
@@ -136,22 +138,28 @@ def confirm_email():
     """Email confirmation endpoint"""
     try:
         data = request.get_json()
+        current_app.logger.info(f"Email confirmation request received: {data}")
         
         if not data:
+            current_app.logger.warning("No data provided for email confirmation")
             return jsonify({'message': 'No data provided'}), 400
         
         token = data.get('token', '').strip()
+        current_app.logger.info(f"Processing confirmation token: {token[:10]}...")
         
         if not token:
+            current_app.logger.warning("No confirmation token provided")
             return jsonify({'message': 'Confirmation token is required'}), 400
         
         # Find user by confirmation token
         user = User.query.filter_by(confirmation_token=token).first()
         
         if not user:
+            current_app.logger.warning(f"No user found for token: {token[:10]}...")
             return jsonify({'message': 'Invalid or expired confirmation token'}), 400
         
         if user.is_confirmed:
+            current_app.logger.info(f"User {user.email} already confirmed")
             return jsonify({'message': 'Email already confirmed'}), 400
         
         # Confirm email
@@ -160,6 +168,7 @@ def confirm_email():
         user.updated_at = datetime.utcnow()
         
         db.session.commit()
+        current_app.logger.info(f"Email confirmed successfully for user: {user.email}")
         
         return jsonify({'message': 'Email confirmed successfully'}), 200
         

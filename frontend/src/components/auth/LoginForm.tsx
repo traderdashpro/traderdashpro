@@ -13,6 +13,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -27,14 +30,45 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setShowResendConfirmation(false);
     setIsLoading(true);
 
     try {
       await login({ email, password });
     } catch (err: any) {
+      if (err.response?.data?.email_not_confirmed) {
+        setShowResendConfirmation(true);
+      }
       setError(err.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true);
+    setResendMessage("");
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/auth/resend-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResendMessage("Confirmation email sent successfully! Please check your inbox.");
+      } else {
+        setResendMessage(data.message || "Failed to send confirmation email.");
+      }
+    } catch (error) {
+      setResendMessage("Failed to send confirmation email. Please try again.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -54,6 +88,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
               {error}
+            </div>
+          )}
+
+          {showResendConfirmation && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
+              <p className="mb-3">
+                Your email is not confirmed. Please check your inbox and click the confirmation link.
+              </p>
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+                className="text-blue-600 hover:text-blue-700 underline text-sm disabled:opacity-50"
+              >
+                {resendLoading ? "Sending..." : "Resend confirmation email"}
+              </button>
+              {resendMessage && (
+                <p className="mt-2 text-sm">
+                  {resendMessage}
+                </p>
+              )}
             </div>
           )}
 

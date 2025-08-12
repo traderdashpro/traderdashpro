@@ -118,6 +118,20 @@ export class ApiClient {
     });
   }
 
+  async confirmEmail(token: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/confirm-email", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async resendConfirmation(email: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/resend-confirmation", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // Trades API
   async getTrades(params?: {
     trading_type?: string;

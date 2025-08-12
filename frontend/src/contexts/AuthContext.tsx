@@ -80,16 +80,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await apiClient.signup(credentials);
 
-      // Auto-login after signup since email confirmation is disabled
-      if (response.user && response.token) {
-        // Set the user state and token directly from signup response
-        setUser(response.user);
-        setToken(response.token);
-        // Set the token in the API client
-        apiClient.setToken(response.token);
-      } else {
-        throw new Error("Invalid signup response");
-      }
+      // Return the response for the frontend to handle email verification
+      return response;
     } catch (error) {
       console.error("Signup failed:", error);
       throw error;
