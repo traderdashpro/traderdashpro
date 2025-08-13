@@ -273,7 +273,25 @@ def get_ai_insights():
                 "areas_for_improvement": ["area1", "area2"],
                 "emotional_state_analysis": "brief analysis of emotional patterns",
                 "trading_performance_insights": "insights about trading performance",
-                "recommendations": ["recommendation1", "recommendation2", "recommendation3"]
+                "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
+                "learning_resources": {{
+                    "videos": [
+                        {{
+                            "title": "Specific video title based on analysis",
+                            "description": "Why this video is recommended",
+                            "search_query": "specific search terms to find this video",
+                            "category": "patterns|strengths|improvements|emotions|performance"
+                        }}
+                    ],
+                    "books": [
+                        {{
+                            "title": "Specific book title based on analysis",
+                            "description": "Why this book is recommended",
+                            "search_query": "specific search terms to find this book",
+                            "category": "patterns|strengths|improvements|emotions|performance"
+                        }}
+                    ]
+                }}
             }}
             
             Focus on:
@@ -283,6 +301,13 @@ def get_ai_insights():
             - Risk management practices
             - Areas for improvement
             - Actionable recommendations
+            
+            For learning resources:
+            - Recommend 2-3 specific YouTube videos that would help with identified issues
+            - Recommend 2-3 specific books that address the user's needs
+            - Make recommendations highly specific to the user's trading patterns
+            - Focus on practical, actionable learning content
+            - Ensure video titles and book titles are real and searchable
             """
             
             response = openai.chat.completions.create(
@@ -290,7 +315,7 @@ def get_ai_insights():
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert trading coach and analyst. Analyze trading journal entries to provide actionable insights and recommendations."
+                        "content": "You are an expert trading coach and analyst. Analyze trading journal entries to provide actionable insights and recommendations. Additionally, provide specific, relevant learning resources including YouTube videos and books that directly address the user's identified needs and trading patterns. Focus on practical, searchable content that users can actually find and benefit from."
                     },
                     {"role": "user", "content": prompt}
                 ],

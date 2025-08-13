@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, BookOpen, Brain } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import TradeTable from "@/components/TradeTable";
 import TradeModal from "@/components/TradeModal";
 import JournalModal from "@/components/JournalModal";
 import JournalTable from "@/components/JournalTable";
-import InsightsPanel from "@/components/InsightsPanel";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { LandingPage } from "@/components/LandingPage";
@@ -17,7 +16,7 @@ import { Trade } from "@/types";
 export default function HomePage() {
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "trades" | "journal" | "insights"
+    "dashboard" | "trades" | "journal"
   >("dashboard");
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [journalModalOpen, setJournalModalOpen] = useState(false);
@@ -51,7 +50,6 @@ export default function HomePage() {
     { id: "dashboard", label: "Dashboard", icon: null },
     { id: "trades", label: "Trades", icon: Plus },
     { id: "journal", label: "Journal", icon: BookOpen },
-    { id: "insights", label: "AI Insights", icon: Brain },
   ];
 
   return (
@@ -158,15 +156,6 @@ export default function HomePage() {
                 key={journalTableKey}
                 onJournalDeleted={handleJournalCreated}
               />
-            </div>
-          )}
-
-          {activeTab === "insights" && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                AI Trading Insights
-              </h2>
-              <InsightsPanel />
             </div>
           )}
         </main>

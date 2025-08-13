@@ -369,29 +369,6 @@ export default function InsightsPanel() {
         )}
       </div>
 
-      {/* Plan Information Banner */}
-      {planInfo && planInfo.plan === "free" && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Lock className="h-5 w-5 text-blue-600 mr-2" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-900">
-                  Free Plan Limitations
-                </h4>
-                <p className="text-sm text-blue-700">
-                  AI insights are limited to once per week. Upgrade to Premium
-                  for unlimited access.
-                </p>
-              </div>
-            </div>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-              Upgrade
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Error Display */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
