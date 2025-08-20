@@ -109,6 +109,12 @@ export interface TradesResponse extends ApiResponse<Trade[]> {
 
 export interface JournalResponse extends ApiResponse<JournalEntry[]> {
   entries?: JournalEntry[];
+  pagination?: {
+    current_page: number;
+    per_page: number;
+    total_count: number;
+    total_pages: number;
+  };
 }
 
 export interface StatsResponse extends ApiResponse<DashboardStats> {

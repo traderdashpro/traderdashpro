@@ -195,11 +195,16 @@ export class ApiClient {
     entry_type?: string;
     date_from?: string;
     date_to?: string;
+    search?: string;
+    page?: number;
+    per_page?: number;
   }): Promise<any> {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value) searchParams.append(key, value);
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.append(key, value.toString());
+        }
       });
     }
 

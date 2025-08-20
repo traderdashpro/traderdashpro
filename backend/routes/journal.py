@@ -17,15 +17,24 @@ journal_bp = Blueprint('journal', __name__)
 @journal_bp.route('/', methods=['GET'])
 @require_auth
 def get_journal_entries():
-    """Get all journal entries for the authenticated user with optional filtering"""
+    """Get all journal entries for the authenticated user with optional filtering and pagination"""
     try:
         user = request.current_user
         
-        # Get query parameters for filtering
+        # Get query parameters for filtering and pagination
         trade_id = request.args.get('trade_id')
         entry_type = request.args.get('entry_type')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
+        search = request.args.get('search', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 10
         
         # Build query - only get entries belonging to the current user
         query = JournalEntry.query.filter(JournalEntry.user_id == user.id)
@@ -45,13 +54,32 @@ def get_journal_entries():
             query = query.filter(JournalEntry.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
         if date_to:
             query = query.filter(JournalEntry.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+        if search:
+            # Search in notes field
+            query = query.filter(JournalEntry.notes.ilike(f'%{search}%'))
         
-        # Order by date descending
-        entries = query.order_by(JournalEntry.date.desc()).all()
+        # Get total count for pagination
+        total_count = query.count()
+        
+        # Calculate pagination
+        offset = (page - 1) * per_page
+        total_pages = (total_count + per_page - 1) // per_page
+        
+        # Get paginated entries ordered by date descending
+        entries = query.order_by(JournalEntry.date.desc())\
+            .offset(offset)\
+            .limit(per_page)\
+            .all()
         
         return jsonify({
             'success': True,
-            'entries': [entry.to_dict() for entry in entries]
+            'entries': [entry.to_dict() for entry in entries],
+            'pagination': {
+                'current_page': page,
+                'per_page': per_page,
+                'total_count': total_count,
+                'total_pages': total_pages
+            }
         }), 200
         
     except Exception as e:
