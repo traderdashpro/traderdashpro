@@ -136,6 +136,7 @@ export class ApiClient {
   async getTrades(params?: {
     trading_type?: string;
     win_loss?: string;
+    status?: string;
     date_from?: string;
     date_to?: string;
   }): Promise<any> {
@@ -157,7 +158,7 @@ export class ApiClient {
     ticker_symbol: string;
     number_of_shares: number;
     buy_price: number;
-    sell_price: number;
+    sell_price?: number;
     trading_type: "Swing" | "Day";
   }): Promise<any> {
     return this.request("/api/trades/", {

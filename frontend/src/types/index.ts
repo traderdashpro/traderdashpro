@@ -8,7 +8,25 @@ export interface Trade {
   buy_price: number;
   sell_price: number;
   trading_type: "Swing" | "Day";
-  win_loss: "Win" | "Loss";
+  win_loss: "Win" | "Loss" | "Pending";
+  status: "OPEN" | "CLOSED";
+  position_id?: string;
+  shares_remaining?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Position {
+  id: string;
+  user_id: string;
+  symbol: string;
+  status: "OPEN" | "CLOSED";
+  total_shares: number;
+  buy_price: number;
+  buy_date: string;
+  sell_price?: number;
+  sell_date?: string;
+  pnl?: number;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +123,7 @@ export interface ApiResponse<T> {
 
 export interface TradesResponse extends ApiResponse<Trade[]> {
   trades?: Trade[];
+  open_positions?: Position[];
 }
 
 export interface JournalResponse extends ApiResponse<JournalEntry[]> {

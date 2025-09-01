@@ -16,7 +16,7 @@ interface TradeFormData {
   ticker_symbol: string;
   number_of_shares: number;
   buy_price: number;
-  sell_price: number;
+  sell_price?: number;
   trading_type: "Swing" | "Day";
 }
 
@@ -278,15 +278,17 @@ export default function TradeModal({
               {/* Sell Price */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sell Price
+                  Sell Price{" "}
+                  <span className="text-gray-500 text-xs">
+                    (Leave empty for open position)
+                  </span>
                 </label>
                 <input
                   type="number"
                   step="0.01"
-                  {...register("sell_price", {
-                    required: "Sell price is required",
-                  })}
+                  {...register("sell_price")}
                   className="input-field"
+                  placeholder="Optional - leave empty for open position"
                 />
                 {errors.sell_price && (
                   <p className="text-danger-600 text-sm mt-1">

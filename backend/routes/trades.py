@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models.trade import Trade
+from models.position import Position
 from utils.decorators import require_auth
 from datetime import datetime
 import uuid
@@ -17,6 +18,7 @@ def get_trades():
         # Get query parameters for filtering
         trading_type = request.args.get('trading_type')
         win_loss = request.args.get('win_loss')
+        status = request.args.get('status')  # 'OPEN' or 'CLOSED'
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
@@ -27,17 +29,23 @@ def get_trades():
             query = query.filter(Trade.trading_type == trading_type)
         if win_loss:
             query = query.filter(Trade.win_loss == win_loss)
+        if status:
+            query = query.filter(Trade.status == status)
         if date_from:
             query = query.filter(Trade.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
         if date_to:
             query = query.filter(Trade.date <= datetime.strptime(date_to, '%Y-%m-%d').date())
         
-        # Order by date descending
-        trades = query.order_by(Trade.date.desc()).all()
+        # Order by status (OPEN first) then by date descending
+        trades = query.order_by(Trade.status.desc(), Trade.date.desc()).all()
+        
+        # Get open positions for additional context
+        open_positions = Position.query.filter_by(user_id=user.id, status='OPEN').all()
         
         return jsonify({
             'success': True,
-            'trades': [trade.to_dict() for trade in trades]
+            'trades': [trade.to_dict() for trade in trades],
+            'open_positions': [pos.to_dict() for pos in open_positions]
         }), 200
         
     except Exception as e:
@@ -55,7 +63,7 @@ def create_trade():
         data = request.get_json()
 
         # Validate required fields
-        required_fields = ['date', 'ticker_symbol', 'number_of_shares', 'buy_price', 'sell_price', 'trading_type']
+        required_fields = ['date', 'ticker_symbol', 'number_of_shares', 'buy_price', 'trading_type']
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -72,17 +80,39 @@ def create_trade():
 
         # Parse date
         trade_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-
+        
+        # Determine if this is an open or closed position
+        sell_price = data.get('sell_price')
+        # Handle empty string case - convert to None for open positions
+        if sell_price == '' or sell_price is None:
+            sell_price = None
+            status = 'OPEN'
+        else:
+            status = 'CLOSED'
+        
         # Create trade with user association
         trade = Trade(
             date=trade_date,
             ticker_symbol=data['ticker_symbol'],
             number_of_shares=data['number_of_shares'],
             buy_price=data['buy_price'],
-            sell_price=data['sell_price'],
+            sell_price=sell_price,
             trading_type=data['trading_type'],
-            user_id=user.id
+            user_id=user.id,
+            status=status
         )
+        
+        # If this is an open position, create a position record
+        if status == 'OPEN':
+            position = Position(
+                user_id=user.id,
+                symbol=data['ticker_symbol'],
+                total_shares=data['number_of_shares'],
+                buy_price=data['buy_price'],
+                buy_date=trade_date
+            )
+            db.session.add(position)
+            trade.position_id = position.id
 
         db.session.add(trade)
         db.session.commit()
@@ -95,6 +125,7 @@ def create_trade():
 
     except Exception as e:
         db.session.rollback()
+        print(f"Error creating trade: {str(e)}")  # Add logging
         return jsonify({
             'success': False,
             'error': str(e)

@@ -21,6 +21,7 @@ export default function TradeTable({
   const [filters, setFilters] = useState({
     trading_type: "",
     win_loss: "",
+    status: "",
     date_from: "",
     date_to: "",
   });
@@ -61,10 +62,16 @@ export default function TradeTable({
     (trade) =>
       trade.ticker_symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trade.trading_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trade.win_loss.toLowerCase().includes(searchTerm.toLowerCase())
+      (trade.win_loss &&
+        trade.win_loss.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      trade.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const calculateProfitLoss = (trade: Trade) => {
+    // For open positions, return null to show dash
+    if (trade.status === "OPEN") {
+      return null;
+    }
     return trade.proceeds - trade.price_cost_basis;
   };
 
@@ -114,6 +121,17 @@ export default function TradeTable({
             <option value="">All Results</option>
             <option value="Win">Win</option>
             <option value="Loss">Loss</option>
+            <option value="Pending">Pending</option>
+          </select>
+
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            className="input-field"
+          >
+            <option value="">All Status</option>
+            <option value="OPEN">Open</option>
+            <option value="CLOSED">Closed</option>
           </select>
         </div>
       </div>
@@ -124,37 +142,31 @@ export default function TradeTable({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ticker
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Symbol
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Shares
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Buy Price
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Buy
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sell Price
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Sell
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cost Basis
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Proceeds
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   P&L
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -164,35 +176,33 @@ export default function TradeTable({
                 const profitLoss = calculateProfitLoss(trade);
                 return (
                   <tr key={trade.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {format(new Date(trade.date), "MMM dd, yyyy")}
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(trade.date), "MMM dd")}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-2 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {trade.ticker_symbol}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
                       {trade.number_of_shares.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${trade.buy_price?.toFixed(2) ?? "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${trade.sell_price?.toFixed(2) ?? "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${trade.price_cost_basis.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${trade.proceeds.toFixed(2)}
-                    </td>
                     <td
-                      className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                        profitLoss >= 0 ? "text-success-600" : "text-danger-600"
+                      className={`px-2 py-4 whitespace-nowrap text-sm font-medium ${
+                        profitLoss === null
+                          ? "text-gray-500"
+                          : profitLoss >= 0
+                          ? "text-success-600"
+                          : "text-danger-600"
                       }`}
                     >
-                      ${profitLoss.toFixed(2)}
+                      {profitLoss === null ? "-" : `$${profitLoss.toFixed(2)}`}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           trade.trading_type === "Swing"
@@ -203,18 +213,18 @@ export default function TradeTable({
                         {trade.trading_type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          trade.win_loss === "Win"
-                            ? "bg-success-100 text-success-800"
-                            : "bg-danger-100 text-danger-800"
+                          trade.status === "OPEN"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {trade.win_loss}
+                        {trade.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => onTradeSelected?.(trade)}

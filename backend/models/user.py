@@ -16,6 +16,9 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationships
+    positions = db.relationship('Position', back_populates='user')
+    
     def __init__(self, email, password, confirmation_token=None, is_confirmed=False, plan='free'):
         self.email = email.lower().strip()
         self.set_password(password)
