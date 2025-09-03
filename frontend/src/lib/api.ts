@@ -160,6 +160,7 @@ export class ApiClient {
     buy_price: number;
     sell_price?: number;
     trading_type: "Swing" | "Day";
+    transaction_type?: string;
   }): Promise<any> {
     return this.request("/api/trades/", {
       method: "POST",
@@ -176,6 +177,7 @@ export class ApiClient {
       buy_price: number;
       sell_price: number;
       trading_type: "Swing" | "Day";
+      transaction_type?: string;
     }>
   ): Promise<any> {
     return this.request(`/api/trades/${id}/`, {

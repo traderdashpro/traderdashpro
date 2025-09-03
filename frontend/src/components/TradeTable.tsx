@@ -22,6 +22,7 @@ export default function TradeTable({
     trading_type: "",
     win_loss: "",
     status: "",
+    transaction_type: "",
     date_from: "",
     date_to: "",
   });
@@ -62,6 +63,10 @@ export default function TradeTable({
     (trade) =>
       trade.ticker_symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trade.trading_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (trade.transaction_type &&
+        trade.transaction_type
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())) ||
       (trade.win_loss &&
         trade.win_loss.toLowerCase().includes(searchTerm.toLowerCase())) ||
       trade.status.toLowerCase().includes(searchTerm.toLowerCase())
@@ -133,6 +138,18 @@ export default function TradeTable({
             <option value="OPEN">Open</option>
             <option value="CLOSED">Closed</option>
           </select>
+
+          <select
+            value={filters.transaction_type}
+            onChange={(e) =>
+              setFilters({ ...filters, transaction_type: e.target.value })
+            }
+            className="input-field"
+          >
+            <option value="">All Assets</option>
+            <option value="stock">Stock</option>
+            <option value="options">Options</option>
+          </select>
         </div>
       </div>
 
@@ -162,6 +179,9 @@ export default function TradeTable({
                 </th>
                 <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
+                </th>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Asset
                 </th>
                 <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -211,6 +231,17 @@ export default function TradeTable({
                         }`}
                       >
                         {trade.trading_type}
+                      </span>
+                    </td>
+                    <td className="px-2 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          trade.transaction_type === "options"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {trade.transaction_type || "stock"}
                       </span>
                     </td>
                     <td className="px-2 py-4 whitespace-nowrap">

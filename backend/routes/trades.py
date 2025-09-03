@@ -19,6 +19,7 @@ def get_trades():
         trading_type = request.args.get('trading_type')
         win_loss = request.args.get('win_loss')
         status = request.args.get('status')  # 'OPEN' or 'CLOSED'
+        transaction_type = request.args.get('transaction_type')
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
         
@@ -31,6 +32,8 @@ def get_trades():
             query = query.filter(Trade.win_loss == win_loss)
         if status:
             query = query.filter(Trade.status == status)
+        if transaction_type:
+            query = query.filter(Trade.transaction_type == transaction_type)
         if date_from:
             query = query.filter(Trade.date >= datetime.strptime(date_from, '%Y-%m-%d').date())
         if date_to:
@@ -99,7 +102,8 @@ def create_trade():
             sell_price=sell_price,
             trading_type=data['trading_type'],
             user_id=user.id,
-            status=status
+            status=status,
+            transaction_type=data.get('transaction_type', 'stock')
         )
         
         # If this is an open position, create a position record

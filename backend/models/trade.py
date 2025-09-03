@@ -27,13 +27,16 @@ class Trade(db.Model):
     position_id = db.Column(db.String(20), db.ForeignKey('positions.id'), nullable=True)
     shares_remaining = db.Column(db.Integer, nullable=True)
     
+    # Transaction type (stock, options, etc.)
+    transaction_type = db.Column(db.String(20), nullable=True, default='stock')
+    
     # Relationships
     position = db.relationship('Position', back_populates='trades')
     
     # Relationship with journal entries
     journal_entries = db.relationship('JournalEntry', backref='trade', lazy=True)
     
-    def __init__(self, date, ticker_symbol, number_of_shares, buy_price, sell_price, trading_type, user_id=None, status='CLOSED', position_id=None, shares_remaining=None):
+    def __init__(self, date, ticker_symbol, number_of_shares, buy_price, sell_price, trading_type, user_id=None, status='CLOSED', position_id=None, shares_remaining=None, transaction_type='stock'):
         self.date = date
         self.ticker_symbol = ticker_symbol.upper()
         self.number_of_shares = int(number_of_shares)
@@ -46,6 +49,7 @@ class Trade(db.Model):
         self.status = status
         self.position_id = position_id
         self.shares_remaining = shares_remaining
+        self.transaction_type = transaction_type
         
         # Auto-detect win/loss based on proceeds vs cost basis (only for closed trades)
         if self.sell_price is not None:
@@ -69,6 +73,7 @@ class Trade(db.Model):
             'status': self.status,
             'position_id': self.position_id,
             'shares_remaining': self.shares_remaining,
+            'transaction_type': self.transaction_type,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

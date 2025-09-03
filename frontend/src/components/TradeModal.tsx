@@ -18,6 +18,7 @@ interface TradeFormData {
   buy_price: number;
   sell_price?: number;
   trading_type: "Swing" | "Day";
+  transaction_type?: string;
 }
 
 export default function TradeModal({
@@ -54,9 +55,9 @@ export default function TradeModal({
       const response = await apiClient.uploadStatement(formData);
 
       // The backend returns data directly on success, no 'success' field
-      if (response && response.closed_trades_count !== undefined) {
+      if (response && response.trades_added !== undefined) {
         setUploadResult(
-          `Successfully imported ${response.closed_trades_count} trades!`
+          `Successfully imported ${response.trades_added} trades!`
         );
         setTimeout(() => {
           if (onTradeCreated) onTradeCreated();
@@ -81,6 +82,7 @@ export default function TradeModal({
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
       trading_type: "Swing",
+      transaction_type: "stock",
     },
   });
 
@@ -162,7 +164,7 @@ export default function TradeModal({
                   className="input-field"
                 >
                   <option value="thinkorswim">Thinkorswim</option>
-                  {/* Add more platforms here in the future */}
+                  <option value="robinhood">Robinhood</option>
                 </select>
               </div>
               <div>
@@ -312,10 +314,23 @@ export default function TradeModal({
                   <option value="Day">Day</option>
                 </select>
                 {errors.trading_type && (
-                  <p className="text-danger-600 text-sm mt-1">
+                  <p className="text-danger-700 text-sm mt-1">
                     {errors.trading_type.message}
                   </p>
                 )}
+              </div>
+              {/* Asset Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Asset Type
+                </label>
+                <select
+                  {...register("transaction_type")}
+                  className="input-field"
+                >
+                  <option value="stock">Stock</option>
+                  <option value="options">Options</option>
+                </select>
               </div>
               <button type="submit" className="btn-primary w-full">
                 Add Trade

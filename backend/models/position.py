@@ -58,7 +58,10 @@ class Position(db.Model):
         self.sell_price = sell_price
         self.sell_date = sell_date
         self.status = 'CLOSED'
-        self.pnl = (sell_price - self.buy_price) * self.total_shares
+        # Convert both to float to avoid Decimal/float type mismatch
+        sell_price_float = float(sell_price) if sell_price is not None else 0.0
+        buy_price_float = float(self.buy_price) if self.buy_price is not None else 0.0
+        self.pnl = (sell_price_float - buy_price_float) * self.total_shares
         self.updated_at = datetime.utcnow()
     
     @staticmethod

@@ -12,6 +12,7 @@ export interface Trade {
   status: "OPEN" | "CLOSED";
   position_id?: string;
   shares_remaining?: number;
+  transaction_type?: string;
   created_at: string;
   updated_at: string;
 }
