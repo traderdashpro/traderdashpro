@@ -423,7 +423,7 @@ def upload_statement():
     print(f"Final symbol_trades: {dict(symbol_trades)}")
     print(f"Final pnl_by_symbol: {pnl_by_symbol}")
 
-    # Process each symbol for position tracking
+    # Process each symbol for position tracking with consolidation
     print(f"Starting position tracking for {len(symbol_trades)} symbols...")
     
     # Get existing open positions for this user
@@ -434,6 +434,10 @@ def upload_statement():
     
     for symbol, actions in symbol_trades.items():
         print(f"Processing symbol {symbol} with {len(actions)} actions")
+        
+        # Separate BUY and SELL actions
+        buy_actions = []
+        sell_actions = []
         
         for idx, action in enumerate(actions):
             try:
@@ -461,87 +465,134 @@ def upload_statement():
                     print(f"  Skipping trade due to date parsing failure: {action}")
                     continue
                 
-                # Determine if this is a buy or sell
-                if side == 'BUY':
-                    # Create a new position or add to existing
-                    position = Position.query.filter_by(
-                        user_id=user.id,
-                        symbol=symbol,
-                        status='OPEN'
-                    ).first()
-                    
-                    if position:
-                        # Add to existing position
-                        position.total_shares += qty
-                        position.updated_at = datetime.utcnow()
-                        print(f"  Added {qty} shares to existing {symbol} position")
-                    else:
-                        # Create new position
-                        position = Position(
-                            user_id=user.id,
-                            symbol=symbol,
-                            total_shares=qty,
-                            buy_price=price,
-                            buy_date=exec_date,
-                            status='OPEN'
-                        )
-                        db.session.add(position)
-                        print(f"  Created new {symbol} position with {qty} shares")
-                    
-                    # Create trade record
-                    trade = Trade(
-                        date=exec_date,
-                        ticker_symbol=symbol,
-                        number_of_shares=int(qty),
-                        buy_price=price,
-                        sell_price=None,  # No sell price for BUY
-                        trading_type='Swing',  # Default to Swing for now
-                        user_id=user.id,
-                        status='OPEN',
-                        position_id=position.id if position else None,
-                        shares_remaining=int(qty),
-                        transaction_type='stock'
-                    )
-                    db.session.add(trade)
-                    trades_added += 1
-                    print(f"  Added BUY trade: {symbol} {qty} @ {price}")
-                    
-                elif side == 'SELL':
-                    # Find existing OPEN position to close
-                    position = Position.query.filter_by(
-                        user_id=user.id,
-                        symbol=symbol,
-                        status='OPEN'
-                    ).first()
-                    
-                    if position and position.total_shares >= qty:
-                        # Close position (LIFO - Last In, First Out)
-                        position.close_position(price, exec_date)
-                        print(f"  Closed {symbol} position: {qty} shares @ {price}")
-                        
-                        # Create trade record
-                        trade = Trade(
-                            date=exec_date,
-                            ticker_symbol=symbol,
-                            number_of_shares=int(qty),
-                            buy_price=position.buy_price,  # Use position's buy price
-                            sell_price=price,  # Current sell price
-                            trading_type='Swing',  # Default to Swing for now
-                            user_id=user.id,
-                            status='CLOSED',
-                            position_id=position.id,
-                            shares_remaining=0,
-                            transaction_type='stock'
-                        )
-                        db.session.add(trade)
-                        trades_added += 1
-                        print(f"  Added SELL trade: {symbol} {qty} @ {price}")
-                    else:
-                        print(f"  Skipping SELL trade - no matching OPEN position: {symbol} {qty}")
+                # Store action with date for consolidation
+                action_data = {
+                    'side': side,
+                    'qty': qty,
+                    'price': price,
+                    'date': exec_date,
+                    'trade_row': trade_row
+                }
                 
+                if side == 'BUY':
+                    buy_actions.append(action_data)
+                elif side == 'SELL':
+                    sell_actions.append(action_data)
+                    
             except Exception as e:
                 print(f"  Error processing trade {action}: {e}")
                 continue
+        
+        # Consolidate BUY actions by date
+        consolidated_buys = {}
+        for buy_action in buy_actions:
+            date_key = buy_action['date']
+            if date_key not in consolidated_buys:
+                consolidated_buys[date_key] = {
+                    'total_shares': 0,
+                    'total_cost': 0.0,
+                    'trades': []
+                }
+            
+            consolidated_buys[date_key]['total_shares'] += buy_action['qty']
+            consolidated_buys[date_key]['total_cost'] += buy_action['qty'] * buy_action['price']
+            consolidated_buys[date_key]['trades'].append(buy_action)
+        
+        # Process consolidated BUY positions
+        for buy_date, consolidated in consolidated_buys.items():
+            total_shares = consolidated['total_shares']
+            weighted_avg_price = consolidated['total_cost'] / total_shares if total_shares > 0 else 0
+            
+            print(f"  Consolidated BUY: {symbol} {total_shares} shares @ ${weighted_avg_price:.2f} avg on {buy_date}")
+            
+            # Create or update position (check for same symbol AND same date)
+            position = Position.query.filter_by(
+                user_id=user.id,
+                symbol=symbol,
+                status='OPEN',
+                buy_date=buy_date
+            ).first()
+            
+            if position:
+                # Add to existing position (update weighted average)
+                old_total_cost = float(position.total_shares) * float(position.buy_price)
+                new_total_cost = old_total_cost + consolidated['total_cost']
+                new_total_shares = position.total_shares + total_shares
+                new_avg_price = new_total_cost / new_total_shares if new_total_shares > 0 else 0
+                
+                position.total_shares = new_total_shares
+                position.buy_price = new_avg_price
+                position.updated_at = datetime.utcnow()
+                print(f"  Updated existing {symbol} position: {new_total_shares} shares @ ${new_avg_price:.2f}")
+            else:
+                # Create new position
+                position = Position(
+                    user_id=user.id,
+                    symbol=symbol,
+                    total_shares=total_shares,
+                    buy_price=weighted_avg_price,
+                    buy_date=buy_date,
+                    status='OPEN'
+                )
+                db.session.add(position)
+                print(f"  Created new {symbol} position: {total_shares} shares @ ${weighted_avg_price:.2f}")
+            
+            # Create individual trade records for each BUY (for audit trail)
+            for trade_data in consolidated['trades']:
+                trade = Trade(
+                    date=trade_data['date'],
+                    ticker_symbol=symbol,
+                    number_of_shares=int(trade_data['qty']),
+                    buy_price=trade_data['price'],
+                    sell_price=None,
+                    trading_type='Swing',
+                    user_id=user.id,
+                    status='OPEN',
+                    position_id=position.id,
+                    shares_remaining=int(trade_data['qty']),
+                    transaction_type='stock'
+                )
+                db.session.add(trade)
+                trades_added += 1
+                print(f"    Added BUY trade: {symbol} {trade_data['qty']} @ {trade_data['price']}")
+        
+        # Process SELL actions
+        for sell_action in sell_actions:
+            qty = sell_action['qty']
+            price = sell_action['price']
+            exec_date = sell_action['date']
+            
+            # Find existing OPEN position to close
+            position = Position.query.filter_by(
+                user_id=user.id,
+                symbol=symbol,
+                status='OPEN'
+            ).first()
+            
+            if position and position.total_shares >= qty:
+                # Close position (LIFO - Last In, First Out)
+                position.close_position(price, exec_date)
+                print(f"  Closed {symbol} position: {qty} shares @ {price}")
+                
+                # Create trade record
+                trade = Trade(
+                    date=exec_date,
+                    ticker_symbol=symbol,
+                    number_of_shares=int(qty),
+                    buy_price=position.buy_price,  # Use position's buy price
+                    sell_price=price,  # Current sell price
+                    trading_type='Swing',  # Default to Swing for now
+                    user_id=user.id,
+                    status='CLOSED',
+                    position_id=position.id,
+                    shares_remaining=0,
+                    transaction_type='stock'
+                )
+                db.session.add(trade)
+                trades_added += 1
+                print(f"  Added SELL trade: {symbol} {qty} @ {price}")
+            else:
+                print(f"  Skipping SELL trade - no matching OPEN position: {symbol} {qty}")
     
     # Commit all changes
     try:
