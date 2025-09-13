@@ -255,4 +255,147 @@ def options_trade(trade_id):
 # Catch-all OPTIONS handler for CORS preflight on any /api/trades/* route
 @trades_bp.route('/<path:dummy>', methods=['OPTIONS'])
 def catch_all_options(dummy):
+    return ('', 204)
+
+# ============================================================================
+# POSITIONS ENDPOINTS
+# ============================================================================
+
+@trades_bp.route('/positions/', methods=['GET'])
+@require_auth
+def get_positions():
+    """Get all consolidated positions for the authenticated user"""
+    try:
+        user = request.current_user
+        
+        # Get query parameters for filtering
+        status = request.args.get('status')  # 'OPEN' or 'CLOSED'
+        symbol = request.args.get('symbol')
+        
+        # Build query - only get positions for the current user
+        query = Position.query.filter(Position.user_id == user.id)
+        
+        if status:
+            query = query.filter(Position.status == status)
+        if symbol:
+            query = query.filter(Position.symbol.ilike(f'%{symbol}%'))
+        
+        # Order by status (OPEN first) then by symbol
+        positions = query.order_by(Position.status.desc(), Position.symbol.asc()).all()
+        
+        # Convert to dictionary format
+        positions_data = []
+        for position in positions:
+            position_dict = {
+                'id': position.id,
+                'symbol': position.symbol,
+                'status': position.status,
+                'total_shares': float(position.total_shares),
+                'buy_price': float(position.buy_price) if position.buy_price else None,
+                'sell_price': float(position.sell_price) if position.sell_price else None,
+                'buy_date': position.buy_date.isoformat() if position.buy_date else None,
+                'sell_date': position.sell_date.isoformat() if position.sell_date else None,
+                'pnl': float(position.pnl) if position.pnl else None,
+                'created_at': position.created_at.isoformat(),
+                'updated_at': position.updated_at.isoformat()
+            }
+            positions_data.append(position_dict)
+        
+        return jsonify({
+            'success': True,
+            'positions': positions_data,
+            'total_count': len(positions_data)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch positions: {str(e)}'
+        }), 500
+
+@trades_bp.route('/positions/<position_id>', methods=['GET','DELETE'])
+@require_auth
+def get_position_details(position_id):
+    """Get detailed information for a specific position including individual trades"""
+    try:
+        user = request.current_user
+        
+        # Get the position
+        position = Position.query.filter_by(
+            id=position_id, 
+            user_id=user.id
+        ).first()
+        
+        if not position:
+            return jsonify({
+                'success': False,
+                'error': 'Position not found'
+            }), 404
+        
+        # Handle DELETE request
+        if request.method == 'DELETE':
+            # Delete all trades associated with this position first
+            trades = Trade.query.filter_by(
+                position_id=position_id,
+                user_id=user.id
+            ).all()
+            
+            for trade in trades:
+                db.session.delete(trade)
+            
+            # Delete the position
+            db.session.delete(position)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Position {position.symbol} and {len(trades)} associated trades deleted successfully'
+            })
+        
+        # Handle GET request
+        # Get all trades for this position
+        trades = Trade.query.filter_by(
+            position_id=position_id,
+            user_id=user.id
+        ).order_by(Trade.date.desc()).all()
+        
+        # Convert position to dictionary
+        position_dict = {
+            'id': position.id,
+            'symbol': position.symbol,
+            'status': position.status,
+            'total_shares': float(position.total_shares),
+            'buy_price': float(position.buy_price) if position.buy_price else None,
+            'sell_price': float(position.sell_price) if position.sell_price else None,
+            'buy_date': position.buy_date.isoformat() if position.buy_date else None,
+            'sell_date': position.sell_date.isoformat() if position.sell_date else None,
+            'pnl': float(position.pnl) if position.pnl else None,
+            'created_at': position.created_at.isoformat(),
+            'updated_at': position.updated_at.isoformat()
+        }
+        
+        # Convert trades to dictionary
+        trades_data = [trade.to_dict() for trade in trades]
+        
+        return jsonify({
+            'success': True,
+            'position': position_dict,
+            'trades': trades_data,
+            'trades_count': len(trades_data)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': f'Failed to process position: {str(e)}'
+        }), 500
+
+# OPTIONS handlers for positions endpoints
+@trades_bp.route('/positions/', methods=['OPTIONS'])
+def options_positions():
+    return ('', 204)
+
+@trades_bp.route('/positions/<position_id>', methods=['OPTIONS'])
+def options_position(position_id):
     return ('', 204) 

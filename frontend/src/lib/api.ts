@@ -192,6 +192,30 @@ export class ApiClient {
     });
   }
 
+  // Positions API
+  async getPositions(params?: {
+    status?: string;
+    symbol?: string;
+  }): Promise<any> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) searchParams.append(key, value);
+      });
+    }
+
+    const queryString = searchParams.toString();
+    const endpoint = `/api/trades/positions/${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    return this.request(endpoint);
+  }
+
+  async getPositionDetails(positionId: string): Promise<any> {
+    return this.request(`/api/trades/positions/${positionId}`);
+  }
+
   // Journal API
   async getJournalEntries(params?: {
     trade_id?: string;

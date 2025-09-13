@@ -465,7 +465,7 @@ def upload_statement():
                     print(f"  Skipping trade due to date parsing failure: {action}")
                     continue
                 
-                # Store action with date for consolidation
+                # Store action with date
                 action_data = {
                     'side': side,
                     'qty': qty,
@@ -483,116 +483,193 @@ def upload_statement():
                 print(f"  Error processing trade {action}: {e}")
                 continue
         
-        # Consolidate BUY actions by date
-        consolidated_buys = {}
-        for buy_action in buy_actions:
-            date_key = buy_action['date']
-            if date_key not in consolidated_buys:
-                consolidated_buys[date_key] = {
-                    'total_shares': 0,
-                    'total_cost': 0.0,
-                    'trades': []
-                }
-            
-            consolidated_buys[date_key]['total_shares'] += buy_action['qty']
-            consolidated_buys[date_key]['total_cost'] += buy_action['qty'] * buy_action['price']
-            consolidated_buys[date_key]['trades'].append(buy_action)
+        # Consolidate ALL BUY actions for this symbol (across all dates)
+        total_buy_shares = 0
+        total_buy_cost = 0.0
+        earliest_buy_date = None
         
-        # Process consolidated BUY positions
-        for buy_date, consolidated in consolidated_buys.items():
-            total_shares = consolidated['total_shares']
-            weighted_avg_price = consolidated['total_cost'] / total_shares if total_shares > 0 else 0
+        for buy_action in buy_actions:
+            total_buy_shares += buy_action['qty']
+            total_buy_cost += buy_action['qty'] * buy_action['price']
+            if earliest_buy_date is None or buy_action['date'] < earliest_buy_date:
+                earliest_buy_date = buy_action['date']
+        
+        # Consolidate ALL SELL actions for this symbol (across all dates)
+        total_sell_shares = 0
+        total_sell_cost = 0.0
+        latest_sell_date = None
+        
+        for sell_action in sell_actions:
+            total_sell_shares += sell_action['qty']
+            total_sell_cost += sell_action['qty'] * sell_action['price']
+            if latest_sell_date is None or sell_action['date'] > latest_sell_date:
+                latest_sell_date = sell_action['date']
+        
+        # Calculate weighted averages
+        buy_avg_price = total_buy_cost / total_buy_shares if total_buy_shares > 0 else 0
+        sell_avg_price = total_sell_cost / total_sell_shares if total_sell_shares > 0 else 0
+        
+        print(f"  Symbol {symbol} Summary:")
+        print(f"    Total BUY: {total_buy_shares} shares @ ${buy_avg_price:.2f} avg")
+        print(f"    Total SELL: {total_sell_shares} shares @ ${sell_avg_price:.2f} avg")
+        
+        # Handle symbols with no BUY trades (SELL-only positions)
+        if total_buy_shares == 0:
+            print(f"    Processing {symbol} - SELL-only position")
             
-            print(f"  Consolidated BUY: {symbol} {total_shares} shares @ ${weighted_avg_price:.2f} avg on {buy_date}")
+            # For SELL-only positions, use sell date as buy date and sell price as buy price
+            # This represents a "short sale" or "sold without owning" scenario
+            buy_date = latest_sell_date  # Use the sell date as buy date
+            buy_price = sell_avg_price   # Use sell price as buy price
+            remaining_shares = total_sell_shares  # Show the actual shares that were sold
+            status = 'CLOSED'           # Always closed for SELL-only
             
-            # Create or update position (check for same symbol AND same date)
-            position = Position.query.filter_by(
-                user_id=user.id,
-                symbol=symbol,
-                status='OPEN',
-                buy_date=buy_date
-            ).first()
+            # Calculate P&L for SELL-only positions (sell_price - buy_price = 0 since they're the same)
+            pnl = 0.0  # For SELL-only positions, P&L is 0 since buy_price = sell_price
             
+            print(f"    SELL-only position: {total_sell_shares} shares @ ${buy_price:.2f} (sold on {buy_date})")
+            print(f"    P&L: ${pnl:.2f} (SELL-only position)")
+            
+            # Create or update position
+            position = Position.query.filter_by(user_id=user.id, symbol=symbol).first()
             if position:
-                # Add to existing position (update weighted average)
-                old_total_cost = float(position.total_shares) * float(position.buy_price)
-                new_total_cost = old_total_cost + consolidated['total_cost']
-                new_total_shares = position.total_shares + total_shares
-                new_avg_price = new_total_cost / new_total_shares if new_total_shares > 0 else 0
-                
-                position.total_shares = new_total_shares
-                position.buy_price = new_avg_price
+                position.total_shares = remaining_shares
+                position.buy_price = buy_price
+                position.buy_date = buy_date
+                position.sell_price = sell_avg_price
+                position.sell_date = latest_sell_date
+                position.status = status
+                position.pnl = pnl
                 position.updated_at = datetime.utcnow()
-                print(f"  Updated existing {symbol} position: {new_total_shares} shares @ ${new_avg_price:.2f}")
+                print(f"    Updated existing {symbol} position")
             else:
-                # Create new position
                 position = Position(
                     user_id=user.id,
                     symbol=symbol,
-                    total_shares=total_shares,
-                    buy_price=weighted_avg_price,
+                    total_shares=remaining_shares,
+                    buy_price=buy_price,
                     buy_date=buy_date,
-                    status='OPEN'
+                    sell_price=sell_avg_price,
+                    sell_date=latest_sell_date,
+                    status=status,
+                    pnl=pnl
                 )
                 db.session.add(position)
-                print(f"  Created new {symbol} position: {total_shares} shares @ ${weighted_avg_price:.2f}")
+                print(f"    Created new {symbol} position")
             
-            # Create individual trade records for each BUY (for audit trail)
-            for trade_data in consolidated['trades']:
+            # Create individual SELL trade records
+            for sell_action in sell_actions:
                 trade = Trade(
-                    date=trade_data['date'],
+                    date=sell_action['date'],
                     ticker_symbol=symbol,
-                    number_of_shares=int(trade_data['qty']),
-                    buy_price=trade_data['price'],
-                    sell_price=None,
+                    number_of_shares=int(sell_action['qty']),
+                    buy_price=0,  # No actual buy price for SELL-only trades
+                    sell_price=sell_action['price'],
                     trading_type='Swing',
                     user_id=user.id,
-                    status='OPEN',
-                    position_id=position.id,
-                    shares_remaining=int(trade_data['qty']),
-                    transaction_type='stock'
-                )
-                db.session.add(trade)
-                trades_added += 1
-                print(f"    Added BUY trade: {symbol} {trade_data['qty']} @ {trade_data['price']}")
-        
-        # Process SELL actions
-        for sell_action in sell_actions:
-            qty = sell_action['qty']
-            price = sell_action['price']
-            exec_date = sell_action['date']
-            
-            # Find existing OPEN position to close
-            position = Position.query.filter_by(
-                user_id=user.id,
-                symbol=symbol,
-                status='OPEN'
-            ).first()
-            
-            if position and position.total_shares >= qty:
-                # Close position (LIFO - Last In, First Out)
-                position.close_position(price, exec_date)
-                print(f"  Closed {symbol} position: {qty} shares @ {price}")
-                
-                # Create trade record
-                trade = Trade(
-                    date=exec_date,
-                    ticker_symbol=symbol,
-                    number_of_shares=int(qty),
-                    buy_price=position.buy_price,  # Use position's buy price
-                    sell_price=price,  # Current sell price
-                    trading_type='Swing',  # Default to Swing for now
-                    user_id=user.id,
                     status='CLOSED',
-                    position_id=position.id,
+                    position_id=position.id,  # Link to the position
                     shares_remaining=0,
                     transaction_type='stock'
                 )
                 db.session.add(trade)
                 trades_added += 1
-                print(f"  Added SELL trade: {symbol} {qty} @ {price}")
-            else:
-                print(f"  Skipping SELL trade - no matching OPEN position: {symbol} {qty}")
+                print(f"    Added SELL trade: {symbol} {sell_action['qty']} @ {sell_action['price']}")
+            
+            continue
+        
+        # Determine position status and remaining shares
+        net_shares = total_buy_shares - total_sell_shares
+        
+        if net_shares > 0:
+            # Position is still OPEN
+            status = 'OPEN'
+            remaining_shares = net_shares
+            # For open positions, calculate realized P&L from shares that were sold
+            pnl = (sell_avg_price - buy_avg_price) * total_sell_shares if total_sell_shares > 0 else 0.0
+            print(f"    Result: {remaining_shares} shares OPEN @ ${buy_avg_price:.2f}")
+            print(f"    Realized P&L: ${pnl:.2f} (from {total_sell_shares} shares sold)")
+        else:
+            # Position is CLOSED
+            status = 'CLOSED'
+            remaining_shares = 0
+            # For closed positions, P&L = (sell_price - buy_price) * shares_sold
+            pnl = (sell_avg_price - buy_avg_price) * total_sell_shares if total_sell_shares > 0 else 0.0
+            print(f"    Result: Position CLOSED (sold {total_sell_shares} of {total_buy_shares} shares)")
+            print(f"    P&L: ${pnl:.2f} (realized)")
+        
+        # Create or update position
+        position = Position.query.filter_by(
+            user_id=user.id,
+            symbol=symbol,
+            status='OPEN'
+        ).first()
+        
+        if position:
+            # Update existing position
+            position.total_shares = remaining_shares
+            position.buy_price = buy_avg_price
+            position.buy_date = earliest_buy_date
+            position.status = status
+            position.pnl = pnl
+            if status == 'CLOSED':
+                position.sell_price = sell_avg_price
+                position.sell_date = latest_sell_date
+            position.updated_at = datetime.utcnow()
+            print(f"  Updated {symbol} position: {remaining_shares} shares @ ${buy_avg_price:.2f} ({status})")
+        else:
+            # Create new position
+            position = Position(
+                user_id=user.id,
+                symbol=symbol,
+                total_shares=remaining_shares,
+                buy_price=buy_avg_price,
+                buy_date=earliest_buy_date,
+                status=status,
+                pnl=pnl
+            )
+            if status == 'CLOSED':
+                position.sell_price = sell_avg_price
+                position.sell_date = latest_sell_date
+            db.session.add(position)
+            print(f"  Created new {symbol} position: {remaining_shares} shares @ ${buy_avg_price:.2f} ({status})")
+        
+        # Create individual trade records for audit trail
+        for buy_action in buy_actions:
+            trade = Trade(
+                date=buy_action['date'],
+                ticker_symbol=symbol,
+                number_of_shares=int(buy_action['qty']),
+                buy_price=buy_action['price'],
+                sell_price=None,
+                trading_type='Swing',
+                user_id=user.id,
+                status='OPEN' if status == 'OPEN' else 'CLOSED',
+                position_id=position.id,
+                shares_remaining=int(buy_action['qty']) if status == 'OPEN' else 0,
+                transaction_type='stock'
+            )
+            db.session.add(trade)
+            trades_added += 1
+            print(f"    Added BUY trade: {symbol} {buy_action['qty']} @ {buy_action['price']}")
+        
+        for sell_action in sell_actions:
+            trade = Trade(
+                date=sell_action['date'],
+                ticker_symbol=symbol,
+                number_of_shares=int(sell_action['qty']),
+                buy_price=buy_avg_price,  # Use position's weighted average buy price
+                sell_price=sell_action['price'],
+                trading_type='Swing',
+                user_id=user.id,
+                status='CLOSED',
+                position_id=position.id,
+                shares_remaining=0,
+                transaction_type='stock'
+            )
+            db.session.add(trade)
+            trades_added += 1
+            print(f"    Added SELL trade: {symbol} {sell_action['qty']} @ {sell_action['price']}")
     
     # Commit all changes
     try:

@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Plus, BookOpen } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import TradeTable from "@/components/TradeTable";
+import PositionTable from "@/components/PositionTable";
+import PositionDetailModal from "@/components/PositionDetailModal";
 import TradeModal from "@/components/TradeModal";
 import JournalModal from "@/components/JournalModal";
 import JournalTable from "@/components/JournalTable";
@@ -20,7 +22,9 @@ export default function HomePage() {
   >("dashboard");
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [journalModalOpen, setJournalModalOpen] = useState(false);
+  const [positionDetailModalOpen, setPositionDetailModalOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const [tradesTableKey, setTradesTableKey] = useState(0);
   const [journalTableKey, setJournalTableKey] = useState(0);
 
@@ -44,6 +48,11 @@ export default function HomePage() {
   const handleTradeSelected = (trade: Trade) => {
     setSelectedTrade(trade);
     setJournalModalOpen(true);
+  };
+
+  const handlePositionSelected = (position: any) => {
+    setSelectedPosition(position);
+    setPositionDetailModalOpen(true);
   };
 
   const tabs = [
@@ -116,9 +125,7 @@ export default function HomePage() {
           {activeTab === "trades" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Trade History
-                </h2>
+                <h2 className="text-2xl font-bold text-gray-900">Positions</h2>
                 <button
                   onClick={() => setTradeModalOpen(true)}
                   className="btn-primary flex items-center"
@@ -127,10 +134,9 @@ export default function HomePage() {
                   Add Trade
                 </button>
               </div>
-              <TradeTable
+              <PositionTable
                 key={tradesTableKey}
-                onTradeSelected={handleTradeSelected}
-                onTradeDeleted={handleTradeCreated}
+                onPositionSelected={handlePositionSelected}
               />
             </div>
           )}
@@ -165,6 +171,12 @@ export default function HomePage() {
           isOpen={tradeModalOpen}
           onClose={() => setTradeModalOpen(false)}
           onTradeCreated={handleTradeCreated}
+        />
+
+        <PositionDetailModal
+          isOpen={positionDetailModalOpen}
+          onClose={() => setPositionDetailModalOpen(false)}
+          position={selectedPosition}
         />
 
         <JournalModal

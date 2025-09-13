@@ -48,6 +48,24 @@ def get_all_trades(token: str) -> list:
         print(f"❌ Connection error: {e}")
         return []
 
+def get_all_positions(token: str) -> list:
+    """Get all trades for the authenticated user."""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.get(f"{BASE_URL}/api/trades/positions/", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("positions", [])
+        else:
+            print(f"❌ Failed to get positions: {response.status_code}")
+            print(f"Response: {response.text}")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Connection error: {e}")
+        return []
+
+
 def delete_trade(token: str, trade_id: str) -> bool:
     """Delete a specific trade."""
     try:
@@ -58,6 +76,28 @@ def delete_trade(token: str, trade_id: str) -> bool:
             return True
         else:
             print(f"❌ Failed to delete trade {trade_id}: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Connection error: {e}")
+        return False
+
+def delete_position(token: str, position_id: str) -> bool:
+    """Delete a specific position."""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.delete(f"{BASE_URL}/api/trades/positions/{position_id}", headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                print(f"    ✅ {data.get('message', 'Deleted successfully')}")
+                return True
+            else:
+                print(f"    ❌ API returned error: {data.get('error', 'Unknown error')}")
+                return False
+        else:
+            print(f"❌ Failed to delete position {position_id}: {response.status_code}")
+            print(f"Response: {response.text}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"❌ Connection error: {e}")
@@ -81,27 +121,55 @@ def main():
     
     print("✅ Authentication successful!")
     
-    # Step 2: Get all trades
-    print("📊 Fetching all trades...")
-    trades = get_all_trades(token)
+    # # Step 2: Get all trades
+    # print("📊 Fetching all trades...")
+    # trades = get_all_trades(token)
     
-    if not trades:
-        print("ℹ️  No trades found. Nothing to delete.")
+    # if not trades:
+    #     print("ℹ️  No trades found. Nothing to delete.")
+    #     sys.exit(0)
+    
+    # print(f"📋 Found {len(trades)} trades to delete")
+    
+    # # Step 3: Delete all trades
+    # print("🗑️  Deleting trades...")
+    # deleted_count = 0
+    # failed_count = 0
+    
+    # for i, trade in enumerate(trades, 1):
+    #     trade_id = trade.get("id")
+    #     symbol = trade.get("ticker_symbol", "Unknown")
+    #     print(f"  [{i}/{len(trades)}] Deleting {symbol} trade ({trade_id})...")
+        
+    #     if delete_trade(token, trade_id):
+    #         deleted_count += 1
+    #         print(f"    ✅ Deleted")
+    #     else:
+    #         failed_count += 1
+    #         print(f"    ❌ Failed")
+    
+
+    # Step 4: Get all positions
+    print("📊 Fetching all positions...")
+    positions = get_all_positions(token)
+    
+    if not positions:
+        print("ℹ️  No positions found. Nothing to delete.")
         sys.exit(0)
     
-    print(f"📋 Found {len(trades)} trades to delete")
+    print(f"📋 Found {len(positions)} positions to delete")
     
-    # Step 3: Delete all trades
-    print("🗑️  Deleting trades...")
+    # Step 5: Delete all positions
+    print("🗑️  Deleting positions...")
     deleted_count = 0
     failed_count = 0
     
-    for i, trade in enumerate(trades, 1):
-        trade_id = trade.get("id")
-        symbol = trade.get("ticker_symbol", "Unknown")
-        print(f"  [{i}/{len(trades)}] Deleting {symbol} trade ({trade_id})...")
+    for i, position in enumerate(positions, 1):
+        position_id = position.get("id")
+        symbol = position.get("symbol", "Unknown")
+        print(f"  [{i}/{len(positions)}] Deleting {symbol} position ({position_id})...")
         
-        if delete_trade(token, trade_id):
+        if delete_position(token, position_id):
             deleted_count += 1
             print(f"    ✅ Deleted")
         else:
@@ -112,14 +180,17 @@ def main():
     print("\n" + "="*50)
     print("📊 DELETION SUMMARY")
     print("="*50)
-    print(f"Total trades found: {len(trades)}")
+    # print(f"Total trades found: {len(trades)}")
+    # print(f"Successfully deleted: {deleted_count}")
+    # print(f"Failed to delete: {failed_count}")
+    print(f"Total positions found: {len(positions)}")
     print(f"Successfully deleted: {deleted_count}")
     print(f"Failed to delete: {failed_count}")
     
     if failed_count == 0:
-        print("🎉 All trades deleted successfully!")
+        print("🎉 All positions deleted successfully!")
     else:
-        print(f"⚠️  {failed_count} trades failed to delete")
+        print(f"⚠️  {failed_count} positions failed to delete")
 
 if __name__ == "__main__":
     main()
