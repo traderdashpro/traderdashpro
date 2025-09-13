@@ -174,14 +174,15 @@ def get_dashboard_stats():
         loss_count = len([t for t in closed_trades if t.win_loss == 'Loss'])
         win_rate = (win_count / len(closed_trades) * 100) if len(closed_trades) > 0 else 0
         
-        # Calculate profit/loss only for closed trades
-        total_profit_loss = sum(t.calculate_profit_loss() for t in closed_trades if t.calculate_profit_loss() is not None)
-        avg_profit_loss = total_profit_loss / len(closed_trades) if len(closed_trades) > 0 else 0
+        # Calculate profit/loss from positions instead of individual trades
+        positions = Position.query.filter(Position.user_id == user.id).all()
+        total_profit_loss = sum(float(pos.pnl) for pos in positions if pos.pnl is not None)
+        avg_profit_loss = total_profit_loss / len(positions) if len(positions) > 0 else 0
         
         # Get recent closed trades (last 30 days)
         thirty_days_ago = datetime.now().date() - timedelta(days=30)
         recent_closed_trades = [t for t in closed_trades if t.date >= thirty_days_ago]
-        recent_profit_loss = sum(t.calculate_profit_loss() for t in recent_closed_trades if t.calculate_profit_loss() is not None)
+        recent_profit_loss = sum(float(pos.pnl) for pos in positions if pos.pnl is not None and pos.status == 'CLOSED')
         
         return jsonify({
             'success': True,
@@ -305,31 +306,23 @@ def get_trading_type_stats():
     try:
         user = request.current_user
         
-        # Get stats for Swing trades - only closed trades for P&L calculations
-        swing_trades = Trade.query.filter(Trade.user_id == user.id, Trade.trading_type == 'Swing').all()
-        closed_swing_trades = [t for t in swing_trades if t.status == 'CLOSED']
-        swing_stats = {
-            'total_trades': len(swing_trades),
-            'win_count': len([t for t in closed_swing_trades if t.win_loss == 'Win']),
-            'loss_count': len([t for t in closed_swing_trades if t.win_loss == 'Loss']),
-            'total_profit_loss': sum(t.calculate_profit_loss() for t in closed_swing_trades if t.calculate_profit_loss() is not None),
-            'win_rate': 0
-        }
-        if len(closed_swing_trades) > 0:
-            swing_stats['win_rate'] = round((swing_stats['win_count'] / len(closed_swing_trades)) * 100, 2)
+        # Get all positions for the user
+        all_positions = Position.query.filter(Position.user_id == user.id).all()
         
-        # Get stats for Day trades - only closed trades for P&L calculations
-        day_trades = Trade.query.filter(Trade.user_id == user.id, Trade.trading_type == 'Day').all()
-        closed_day_trades = [t for t in day_trades if t.status == 'CLOSED']
-        day_stats = {
-            'total_trades': len(day_trades),
-            'win_count': len([t for t in closed_day_trades if t.win_loss == 'Win']),
-            'loss_count': len([t for t in closed_day_trades if t.win_loss == 'Loss']),
-            'total_profit_loss': sum(t.calculate_profit_loss() for t in closed_day_trades if t.calculate_profit_loss() is not None),
+        # For now, we'll show the same stats for both Swing and Day since positions don't have trading_type
+        # In the future, we could add trading_type to positions or calculate it from associated trades
+        swing_stats = {
+            'total_trades': len(all_positions),
+            'win_count': len([pos for pos in all_positions if pos.pnl is not None and float(pos.pnl) > 0]),
+            'loss_count': len([pos for pos in all_positions if pos.pnl is not None and float(pos.pnl) < 0]),
+            'total_profit_loss': sum(float(pos.pnl) for pos in all_positions if pos.pnl is not None),
             'win_rate': 0
         }
-        if len(closed_day_trades) > 0:
-            day_stats['win_rate'] = round((day_stats['win_count'] / len(closed_day_trades)) * 100, 2)
+        if len(all_positions) > 0:
+            swing_stats['win_rate'] = round((swing_stats['win_count'] / len(all_positions)) * 100, 2)
+        
+        # Same stats for Day trades for now
+        day_stats = swing_stats.copy()
         
         return jsonify({
             'success': True,

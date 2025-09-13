@@ -11,6 +11,7 @@ from typing import Optional
 
 # Backend URL - adjust if needed
 BASE_URL = "http://localhost:5001"
+# BASE_URL = "https://api.traderdashpro.com"
 
 def authenticate(username: str, password: str) -> Optional[str]:
     """Authenticate user and return JWT token."""
@@ -70,15 +71,64 @@ def delete_trade(token: str, trade_id: str) -> bool:
     """Delete a specific trade."""
     try:
         headers = {"Authorization": f"Bearer {token}"}
+        
+        # First, try to clear the position_id reference by updating the trade
+        update_data = {"position_id": None}
+        update_response = requests.put(f"{BASE_URL}/api/trades/{trade_id}", 
+                                     json=update_data, headers=headers)
+        
+        # Then delete the trade
         response = requests.delete(f"{BASE_URL}/api/trades/{trade_id}", headers=headers)
         
         if response.status_code == 200:
             return True
         else:
             print(f"❌ Failed to delete trade {trade_id}: {response.status_code}")
+            print(f"Response: {response.text}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"❌ Connection error: {e}")
+        return False
+
+def delete_options_trades_direct():
+    """Delete all options trades directly via database connection."""
+    try:
+        from database import db
+        from flask import Flask
+        from sqlalchemy import text
+        
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@localhost:5432/trading_insights'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        db.init_app(app)
+        
+        with app.app_context():
+            # Check if options_trades table exists
+            result = db.session.execute(text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'options_trades')"))
+            exists = result.fetchone()[0]
+            
+            if exists:
+                # Get count of options trades
+                result = db.session.execute(text('SELECT COUNT(*) FROM options_trades'))
+                count = result.fetchone()[0]
+                print(f"Found {count} options trades")
+                
+                if count > 0:
+                    # Delete all options trades
+                    db.session.execute(text('DELETE FROM options_trades'))
+                    db.session.commit()
+                    print("✅ All options trades deleted")
+                    return True
+                else:
+                    print("ℹ️  No options trades to delete")
+                    return True
+            else:
+                print("ℹ️  No options_trades table found")
+                return True
+                
+    except Exception as e:
+        print(f"❌ Error deleting options trades: {e}")
         return False
 
 def delete_position(token: str, position_id: str) -> bool:
@@ -121,32 +171,40 @@ def main():
     
     print("✅ Authentication successful!")
     
-    # # Step 2: Get all trades
-    # print("📊 Fetching all trades...")
-    # trades = get_all_trades(token)
+    # Step 1.5: Delete options trades first (to avoid foreign key constraints)
+    print("🗑️  Deleting options trades...")
+    if delete_options_trades_direct():
+        print("✅ Options trades cleared")
+    else:
+        print("❌ Failed to clear options trades")
     
-    # if not trades:
-    #     print("ℹ️  No trades found. Nothing to delete.")
-    #     sys.exit(0)
+    # Step 2: Get all trades
+    print("📊 Fetching all trades...")
+    trades = get_all_trades(token)
     
-    # print(f"📋 Found {len(trades)} trades to delete")
-    
-    # # Step 3: Delete all trades
-    # print("🗑️  Deleting trades...")
-    # deleted_count = 0
-    # failed_count = 0
-    
-    # for i, trade in enumerate(trades, 1):
-    #     trade_id = trade.get("id")
-    #     symbol = trade.get("ticker_symbol", "Unknown")
-    #     print(f"  [{i}/{len(trades)}] Deleting {symbol} trade ({trade_id})...")
+    if not trades:
+        print("ℹ️  No trades found. Nothing to delete.")
+    else:
+        print(f"📋 Found {len(trades)} trades to delete")
         
-    #     if delete_trade(token, trade_id):
-    #         deleted_count += 1
-    #         print(f"    ✅ Deleted")
-    #     else:
-    #         failed_count += 1
-    #         print(f"    ❌ Failed")
+        # Step 3: Delete all trades
+        print("🗑️  Deleting trades...")
+        deleted_count = 0
+        failed_count = 0
+        
+        for i, trade in enumerate(trades, 1):
+            trade_id = trade.get("id")
+            symbol = trade.get("ticker_symbol", "Unknown")
+            print(f"  [{i}/{len(trades)}] Deleting {symbol} trade ({trade_id})...")
+            
+            if delete_trade(token, trade_id):
+                deleted_count += 1
+                print(f"    ✅ Deleted")
+            else:
+                failed_count += 1
+                print(f"    ❌ Failed")
+        
+        print(f"Trades deleted: {deleted_count}, Failed: {failed_count}")
     
 
     # Step 4: Get all positions
