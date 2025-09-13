@@ -42,8 +42,8 @@ class Trade(db.Model):
         self.number_of_shares = int(number_of_shares)
         self.buy_price = float(buy_price) if buy_price is not None else None
         self.sell_price = float(sell_price) if sell_price is not None else None
-        self.price_cost_basis = self.number_of_shares * self.buy_price if self.buy_price is not None else None
-        self.proceeds = self.number_of_shares * self.sell_price if self.sell_price is not None else None
+        self.price_cost_basis = self.number_of_shares * self.buy_price if self.buy_price is not None else 0.0
+        self.proceeds = self.number_of_shares * self.sell_price if self.sell_price is not None else 0.0
         self.trading_type = trading_type
         self.user_id = user_id
         self.status = status
